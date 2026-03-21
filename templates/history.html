@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>My Bookings</title>
+</head>
+
+<body>
+
+<h2>My Bookings</h2>
+<a href="/search">Back</a>
+
+{% if bookings %}
+  {% for booking in bookings %}
+    <div style="border:1px solid black; margin:10px; padding:10px;">
+
+      <h3>{{ booking.bus_name }}</h3>
+
+      <!-- FIXED -->
+      <p>{{ booking.source }} → {{ booking.destination }}</p>
+      <p>Date: {{ booking.travel_date }}</p>
+
+      <p>Seats: {{ booking.seats }}</p>
+      <p>Price: ₹{{ booking.price }}</p>
+
+    </div>
+  {% endfor %}
+{% else %}
+  <p>No bookings found</p>
+{% endif %}
+
+</body>
+</html>

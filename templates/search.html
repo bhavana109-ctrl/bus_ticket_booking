@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Search Buses</title>
+
+  <style>
+    body {
+      font-family: Arial;
+      background: linear-gradient(135deg, #ff4e00, #ec9f05);
+      color: white;
+      padding: 20px;
+    }
+
+    .box {
+      background: white;
+      color: black;
+      padding: 20px;
+      border-radius: 10px;
+      max-width: 500px;
+      margin: auto;
+    }
+
+    input, button {
+      width: 100%;
+      padding: 10px;
+      margin-top: 10px;
+    }
+
+    a {
+      color: white;
+      margin-right: 10px;
+    }
+
+    .flash {
+      background: yellow;
+      color: black;
+      padding: 10px;
+      margin-bottom: 10px;
+    }
+  </style>
+</head>
+
+<body>
+
+<h2>🚌 Search Buses</h2>
+
+<a href="{{ url_for('booking_history') }}">My Bookings</a>
+<a href="{{ url_for('logout') }}">Logout</a>
+
+{% with messages = get_flashed_messages() %}
+  {% if messages %}
+    {% for msg in messages %}
+      <div class="flash">{{ msg }}</div>
+    {% endfor %}
+  {% endif %}
+{% endwith %}
+
+<div class="box">
+
+<form action="/search_buses" method="POST">
+
+  <label>From</label>
+  <input type="text" name="from" required>
+
+  <label>To</label>
+  <input type="text" name="to" required>
+
+  <label>Date</label>
+  <input type="date" name="date" required>
+
+  <button type="submit">Search</button>
+
+</form>
+
+</div>
+
+</body>
+</html>

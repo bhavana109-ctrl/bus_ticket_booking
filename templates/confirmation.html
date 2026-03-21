@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Ticket Confirmation</title>
+
+  <style>
+    body {
+      font-family: Arial;
+      background: linear-gradient(135deg,#ff4e00,#ec9f05);
+      display:flex;
+      justify-content:center;
+      align-items:center;
+      height:100vh;
+    }
+
+    .ticket {
+      background:white;
+      padding:30px;
+      border-radius:10px;
+      width:400px;
+    }
+
+    h2 { color:green; text-align:center; }
+
+    .btn {
+      display:inline-block;
+      padding:10px;
+      margin-top:15px;
+      background:#ff4e00;
+      color:white;
+      text-decoration:none;
+      border-radius:5px;
+    }
+  </style>
+</head>
+
+<body>
+
+<div class="ticket">
+
+<h2>✅ Booking Confirmed</h2>
+
+<p><b>Bus:</b> {{ booking.bus_name }}</p>
+<p><b>Route:</b> {{ booking.source }} → {{ booking.destination }}</p>
+<p><b>Date:</b> {{ booking.travel_date }}</p>
+<p><b>Passenger:</b> {{ booking.passenger_name }}</p>
+<p><b>Seats:</b> {{ booking.seats }}</p>
+<p><b>Total:</b> ₹{{ booking.total_amount }}</p>
+
+<a href="/search" class="btn">Book Again</a>
+<a href="{{ url_for('booking_history') }}" class="btn">My Bookings</a>
+
+</div>
+
+</body>
+</html>

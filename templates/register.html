@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Register</title>
+
+  <style>
+    body {
+      font-family: Arial;
+      background: linear-gradient(135deg,#ff4e00,#ec9f05);
+      display:flex;
+      justify-content:center;
+      align-items:center;
+      height:100vh;
+    }
+
+    .box {
+      background:white;
+      padding:40px;
+      width:350px;
+      border-radius:10px;
+    }
+
+    input,button {
+      width:100%;
+      padding:10px;
+      margin:8px 0;
+    }
+
+    button {
+      background:#ff4e00;
+      color:white;
+      border:none;
+    }
+
+    .error {
+      color:red;
+      text-align:center;
+    }
+  </style>
+</head>
+
+<body>
+
+<div class="box">
+
+<h2>Register</h2>
+
+{% if error %}
+<div class="error">{{ error }}</div>
+{% endif %}
+
+<form method="POST">
+
+<input type="text" name="name" placeholder="Full Name" required>
+<input type="email" name="email" placeholder="Email" required>
+<input type="text" name="username" placeholder="Username" required>
+<input type="password" name="password" placeholder="Password" required>
+<input type="password" name="confirm_password" placeholder="Confirm Password" required>
+
+<button type="submit">Register</button>
+
+</form>
+
+<p><a href="/login">Already have account?</a></p>
+
+</div>
+
+</body>
+</html>

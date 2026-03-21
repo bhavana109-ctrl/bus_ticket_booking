@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Login - BusHub</title>
+  <style>
+    body {
+      font-family: Arial;
+      background: linear-gradient(135deg,#ff4e00,#ec9f05);
+      display:flex;
+      justify-content:center;
+      align-items:center;
+      height:100vh;
+    }
+
+    .box {
+      background:white;
+      padding:40px;
+      width:350px;
+      border-radius:12px;
+      box-shadow:0 10px 30px rgba(0,0,0,0.2);
+      text-align:center;
+    }
+
+    h2 {
+      margin-bottom:20px;
+    }
+
+    input,button {
+      width:100%;
+      padding:12px;
+      margin:10px 0;
+      border-radius:6px;
+      border:1px solid #ccc;
+    }
+
+    button {
+      background:#ff4e00;
+      color:white;
+      border:none;
+      font-weight:bold;
+      cursor:pointer;
+    }
+
+    button:hover {
+      background:#e64500;
+    }
+
+    .error {
+      color:red;
+      margin-bottom:10px;
+    }
+
+    a {
+      text-decoration:none;
+      color:#ff4e00;
+    }
+  </style>
+</head>
+
+<body>
+
+<div class="box">
+
+<h2>Login</h2>
+
+{% if error %}
+<div class="error">{{ error }}</div>
+{% endif %}
+
+<form method="POST" action="/login">
+  <input type="text" name="username" placeholder="Username" required>
+  <input type="password" name="password" placeholder="Password" required>
+
+  <button type="submit">Login</button>
+</form>
+
+<p><a href="/register">Create account</a></p>
+<p><a href="/forgot_password">Forgot password?</a></p>
+
+</div>
+
+</body>
+</html>

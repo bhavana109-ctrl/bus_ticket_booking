@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Available Buses</title>
+  <style>
+    body {
+      font-family: Arial;
+      background: linear-gradient(135deg,#ff4e00,#ec9f05);
+      padding:20px;
+    }
+
+    .card {
+      background:white;
+      padding:20px;
+      margin:15px;
+      border-radius:10px;
+      box-shadow:0 5px 15px rgba(0,0,0,0.2);
+    }
+
+    .btn {
+      background:#ff4e00;
+      color:white;
+      padding:8px 15px;
+      text-decoration:none;
+      border-radius:5px;
+    }
+  </style>
+</head>
+
+<body>
+
+<h2 style="color:white;">Available Buses</h2>
+<a href="/search" style="color:white;">← Back</a>
+
+{% for bus in buses %}
+<div class="card">
+  <h3>{{ bus.bus_name }}</h3>
+  <p>{{ bus.source }} → {{ bus.destination }}</p>
+  <p>Date: {{ bus.travel_date }}</p>
+  <p>Price: ₹{{ bus.price }}</p>
+
+  <!-- FIXED -->
+  <p>Seats Available: {{ bus.available_seats }}</p>
+
+  <a href="/select_seats/{{ bus.id }}" class="btn">Book Now</a>
+</div>
+{% endfor %}
+
+</body>
+</html>

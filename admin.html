@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Admin Dashboard</title>
+
+    <!-- NEW: Basic Styling -->
+    <style>
+        body {
+            font-family: Arial;
+            background: #f5f5f5;
+            margin: 0;
+        }
+        header {
+            background: #333;
+            color: white;
+            padding: 15px;
+            text-align: center;
+        }
+        .container {
+            width: 90%;
+            margin: auto;
+            background: white;
+            padding: 20px;
+            margin-top: 20px;
+            border-radius: 10px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            padding: 10px;
+            border: 1px solid #ccc;
+            text-align: center;
+        }
+        th {
+            background: #eee;
+        }
+        button, a {
+            padding: 6px 10px;
+            text-decoration: none;
+            border: none;
+            cursor: pointer;
+        }
+        .delete { background: red; color: white; }
+        .edit { background: orange; color: white; }
+        .cancel { background: crimson; color: white; }
+        .stats {
+            display: flex;
+            justify-content: space-around;
+            margin-bottom: 20px;
+        }
+        .card {
+            background: #007bff;
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            width: 40%;
+            text-align: center;
+        }
+    </style>
+</head>
+
+<body>
+
+<header>
+    <h2>Admin Dashboard</h2>
+</header>
+
+<div class="container">
+
+    <!-- NEW: STATS -->
+    <div class="stats">
+        <div class="card">
+            <h3>Total Bookings</h3>
+            <p>{{ total }}</p>
+        </div>
+        <div class="card">
+            <h3>Total Revenue</h3>
+            <p>₹{{ revenue }}</p>
+        </div>
+    </div>
+
+    <hr>
+
+    <!-- EXISTING: Add Bus -->
+    <h3>Add Bus</h3>
+    <form method="POST" action="/add_bus">
+        <input type="text" name="name" placeholder="Bus Name" required><br><br>
+        <input type="text" name="source" placeholder="From" required><br><br>
+        <input type="text" name="destination" placeholder="To" required><br><br>
+        <input type="date" name="date" required><br><br>
+        <input type="time" name="departure" required><br><br>
+        <input type="time" name="arrival" required><br><br>
+        <input type="number" name="price" placeholder="Price" required><br><br>
+        <button type="submit">Add Bus</button>
+    </form>
+
+    <hr>
+
+    <!-- UPDATED: BUS LIST WITH EDIT -->
+    <h3>All Buses</h3>
+    <table>
+        <tr>
+            <th>ID</th>
+            <th>Name</th>
+            <th>Route</th>
+            <th>Price</th>
+            <th>Actions</th>
+        </tr>
+
+        {% for bus in buses %}
+        <tr>
+            <td>{{ bus.id }}</td>
+            <td>{{ bus.bus_name }}</td>
+            <td>{{ bus.source }} → {{ bus.destination }}</td>
+            <td>₹{{ bus.price }}</td>
+            <td>
+                <!-- DELETE -->
+                <a class="delete" href="/delete_bus/{{ bus.id }}">Delete</a>
+
+                <!-- NEW: EDIT -->
+                <form method="POST" action="/edit_bus/{{ bus.id }}" style="display:inline;">
+                    <input type="text" name="name" placeholder="New Name" required>
+                    <input type="text" name="source" placeholder="From" required>
+                    <input type="text" name="destination" placeholder="To" required>
+                    <input type="number" name="price" placeholder="Price" required>
+                    <button class="edit">Edit</button>
+                </form>
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+
+    <hr>
+
+    <!-- NEW: USERS -->
+    <h3>All Users</h3>
+    <table>
+        <tr>
+            <th>ID</th>
+            <th>Username</th>
+            <th>Email</th>
+            <th>Role</th>
+        </tr>
+
+        {% for u in users %}
+        <tr>
+            <td>{{ u.id }}</td>
+            <td>{{ u.username }}</td>
+            <td>{{ u.email }}</td>
+            <td>{{ u.role }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+
+    <hr>
+
+    <!-- UPDATED: BOOKINGS -->
+    <h3>All Bookings</h3>
+    <table>
+        <tr>
+            <th>ID</th>
+            <th>User</th>
+            <th>Bus</th>
+            <th>Seats</th>
+            <th>Action</th>
+        </tr>
+
+        {% for b in bookings %}
+        <tr>
+            <td>{{ b.id }}</td>
+            <td>{{ b.username }}</td>
+            <td>{{ b.bus_name }}</td>
+            <td>{{ b.seats }}</td>
+            <td>
+                <!-- NEW: CANCEL -->
+                <a class="cancel" href="/admin_cancel/{{ b.id }}">Cancel</a>
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+
+</div>
+
+</body>
+</html>
