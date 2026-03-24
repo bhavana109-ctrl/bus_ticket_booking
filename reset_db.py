@@ -36,32 +36,49 @@ def reset_database():
         
         print("✅ Cleared old data")
         
-        # Get today's date for sample buses
+        # Get today's date and future dates for sample buses
         today = datetime.now().strftime('%Y-%m-%d')
+        tomorrow = (datetime.now() + timedelta(days=1)).strftime('%Y-%m-%d')
+        day_after = (datetime.now() + timedelta(days=2)).strftime('%Y-%m-%d')
         
-        # Insert sample buses with today's date
+        # Insert sample buses with different dates
         buses_data = [
+            # Today's buses
             ('KSRTC Express', 'Kochi', 'Coimbatore', '["Kochi", "Thrissur", "Palakkad", "Coimbatore"]', 
-             '08:00:00', '16:00:00', today, 1200.00, 40, 'AC', '["WiFi", "Charging", "Water", "Blanket"]', 'KSRTC'),
+             '08:00:00', '16:00:00', today, 1200.00, 40, 'AC', '["WiFi", "Charging", "Water", "Blanket"]', 4.2, 'KSRTC'),
             ('Super Deluxe', 'Calicut', 'Trivandrum', '["Calicut", "Kannur", "Kochi", "Trivandrum"]',
-             '09:00:00', '20:00:00', today, 1500.00, 45, 'Sleeper', '["WiFi", "AC", "Water"]', 'Private'),
+             '09:00:00', '20:00:00', today, 1500.00, 45, 'Sleeper', '["WiFi", "AC", "Water"]', 4.5, 'Private'),
             ('TNSTC Express', 'Chennai', 'Coimbatore', '["Chennai", "Vellore", "Salem", "Coimbatore"]',
-             '06:00:00', '14:00:00', today, 1000.00, 40, 'Non-AC', '["Water"]', 'TNSTC'),
+             '06:00:00', '14:00:00', today, 1000.00, 40, 'Non-AC', '["Water"]', 3.8, 'TNSTC'),
             ('Volvo AC', 'Bangalore', 'Chennai', '["Bangalore", "Hosur", "Krishnagiri", "Chennai"]',
-             '22:00:00', '06:00:00', today, 1800.00, 40, 'AC', '["WiFi", "Charging", "Water", "Entertainment"]', 'Volvo'),
+             '22:00:00', '06:00:00', today, 1800.00, 40, 'AC', '["WiFi", "Charging", "Water", "Entertainment"]', 4.7, 'Volvo'),
             ('Shivneri', 'Mumbai', 'Pune', '["Mumbai", "Thane", "Pune"]',
-             '07:00:00', '10:00:00', today, 600.00, 50, 'AC', '["WiFi", "Water"]', 'MSRTC'),
+             '07:00:00', '10:00:00', today, 600.00, 50, 'AC', '["WiFi", "Water"]', 4.0, 'MSRTC'),
+            
+            # Tomorrow's buses
+            ('KSRTC Express', 'Kochi', 'Coimbatore', '["Kochi", "Thrissur", "Palakkad", "Coimbatore"]', 
+             '08:00:00', '16:00:00', tomorrow, 1200.00, 40, 'AC', '["WiFi", "Charging", "Water", "Blanket"]', 4.2, 'KSRTC'),
+            ('Super Deluxe', 'Calicut', 'Trivandrum', '["Calicut", "Kannur", "Kochi", "Trivandrum"]',
+             '09:00:00', '20:00:00', tomorrow, 1500.00, 45, 'Sleeper', '["WiFi", "AC", "Water"]', 4.5, 'Private'),
+            ('Volvo AC', 'Bangalore', 'Chennai', '["Bangalore", "Hosur", "Krishnagiri", "Chennai"]',
+             '22:00:00', '06:00:00', tomorrow, 1800.00, 40, 'AC', '["WiFi", "Charging", "Water", "Entertainment"]', 4.7, 'Volvo'),
+            
+            # Day after tomorrow's buses
+            ('KSRTC Express', 'Kochi', 'Coimbatore', '["Kochi", "Thrissur", "Palakkad", "Coimbatore"]', 
+             '08:00:00', '16:00:00', day_after, 1200.00, 40, 'AC', '["WiFi", "Charging", "Water", "Blanket"]', 4.2, 'KSRTC'),
+            ('Super Deluxe', 'Calicut', 'Trivandrum', '["Calicut", "Kannur", "Kochi", "Trivandrum"]',
+             '09:00:00', '20:00:00', day_after, 1500.00, 45, 'Sleeper', '["WiFi", "AC", "Water"]', 4.5, 'Private'),
         ]
         
         for bus in buses_data:
             cursor.execute("""
                 INSERT INTO buses (bus_name, source, destination, stops, departure_time, arrival_time, 
-                                  travel_date, price, seats_total, bus_type, amenities, operator)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                                  travel_date, price, seats_total, bus_type, amenities, rating, operator)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             """, bus)
         
         db.commit()
-        print(f"✅ Inserted 5 sample buses for date: {today}")
+        print(f"✅ Inserted 11 sample buses for dates: {today}, {tomorrow}, {day_after}")
         
         # Get bus IDs
         cursor.execute("SELECT id, source, destination, stops FROM buses")

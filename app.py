@@ -29,8 +29,8 @@ app.config['MAIL_USE_SSL'] = False
 # (Previously these were mistakenly set as tuples, which breaks SMTP auth
 # and prevents OTP emails from being sent.)
 #
-app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME', 'adithyaaravind020@gmail.com').strip()
-app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD', 'krqr wqdl zilk qfzz').strip()
+app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME', 'mbhavana109@gmail.com').strip()
+app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD', 'rmrq apsv jpym jjie').strip()
 app.config['MAIL_DEBUG'] = True
 app.config['MAIL_DEFAULT_SENDER'] = app.config['MAIL_USERNAME']
 #
@@ -46,7 +46,7 @@ mail = Mail(app)
 DB_CONFIG = {
     'host': os.environ.get('DB_HOST', 'localhost'),
     'user': os.environ.get('DB_USER', 'root'),
-    'password': os.environ.get('DB_PASSWORD', 'Adi@thyaa06'),
+    'password': os.environ.get('DB_PASSWORD', 'bhavana@123xxjb'),
     'database': os.environ.get('DB_NAME', 'bus_booking')
 }
 
@@ -150,6 +150,22 @@ def ensure_bus_schema():
     cursor.execute("SHOW COLUMNS FROM bookings LIKE 'status'")
     if not cursor.fetchone():
         cursor.execute("ALTER TABLE bookings ADD COLUMN status ENUM('confirmed', 'cancelled') DEFAULT 'confirmed'")
+
+    # booking_date is used for ORDER BY and admin views (older DBs may lack it)
+    cursor.execute("SHOW COLUMNS FROM bookings LIKE 'booking_date'")
+    if not cursor.fetchone():
+        cursor.execute(
+            "ALTER TABLE bookings ADD COLUMN booking_date TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP"
+        )
+
+    # Refund-related columns used by cancellation flow
+    cursor.execute("SHOW COLUMNS FROM bookings LIKE 'refund_amount'")
+    if not cursor.fetchone():
+        cursor.execute("ALTER TABLE bookings ADD COLUMN refund_amount DECIMAL(10,2) NULL")
+
+    cursor.execute("SHOW COLUMNS FROM bookings LIKE 'cancelled_at'")
+    if not cursor.fetchone():
+        cursor.execute("ALTER TABLE bookings ADD COLUMN cancelled_at DATETIME NULL")
 
     db.commit()
     cursor.close()
@@ -283,6 +299,15 @@ def ensure_seat_details_for_buses():
 
 
 db_initialized = False
+
+def effective_travel_date_from_session(bus_row):
+    """Travel date shown/stored for the trip: user's search date when present, else the bus row."""
+    raw = session.get('search_travel_date')
+    if raw is None:
+        return bus_row.get('travel_date')
+    s = str(raw).strip()
+    return s if s else bus_row.get('travel_date')
+
 
 def initialize_db():
     """Initialize missing DB-supported data"""
@@ -750,28 +775,30 @@ def search():
         source = source.strip()
         destination = destination.strip()
         travel_date = travel_date.strip()
+        # Persist the date the user searched for so booking details match search (bus row may differ in fallback flows).
+        session['search_travel_date'] = travel_date
 
-        # Search for buses that have both stops in their route (case-insensitive, partial matching)
+        # Search for buses that have both stops in their route (exact matching)
         cursor.execute("""
             SELECT DISTINCT b.*
             FROM buses b
-            JOIN routes r1 ON b.id = r1.bus_id AND LOWER(r1.stop_name) LIKE LOWER(%s)
-            JOIN routes r2 ON b.id = r2.bus_id AND LOWER(r2.stop_name) LIKE LOWER(%s)
+            JOIN routes r1 ON b.id = r1.bus_id AND LOWER(r1.stop_name) = LOWER(%s)
+            JOIN routes r2 ON b.id = r2.bus_id AND LOWER(r2.stop_name) = LOWER(%s)
             WHERE b.travel_date = %s
               AND r1.stop_order < r2.stop_order
             GROUP BY b.id
-        """, (f"%{source}%", f"%{destination}%", travel_date))
+        """, (source, destination, travel_date))
 
         buses = cursor.fetchall()
 
-        # Fallback 1: exact source/destination on the same date (case-insensitive, partial)
+        # Fallback 1: exact source/destination on the same date
         if not buses:
             cursor.execute("""
                 SELECT * FROM buses
-                WHERE LOWER(source) LIKE LOWER(%s)
-                  AND LOWER(destination) LIKE LOWER(%s)
+                WHERE LOWER(source) = LOWER(%s)
+                  AND LOWER(destination) = LOWER(%s)
                   AND travel_date = %s
-            """, (f"%{source}%", f"%{destination}%", travel_date))
+            """, (source, destination, travel_date))
             buses = cursor.fetchall()
 
         # Fallback 2: route match on upcoming dates if still no results
@@ -779,23 +806,23 @@ def search():
             cursor.execute("""
                 SELECT DISTINCT b.*
                 FROM buses b
-                JOIN routes r1 ON b.id = r1.bus_id AND LOWER(r1.stop_name) LIKE LOWER(%s)
-                JOIN routes r2 ON b.id = r2.bus_id AND LOWER(r2.stop_name) LIKE LOWER(%s)
+                JOIN routes r1 ON b.id = r1.bus_id AND LOWER(r1.stop_name) = LOWER(%s)
+                JOIN routes r2 ON b.id = r2.bus_id AND LOWER(r2.stop_name) = LOWER(%s)
                 WHERE b.travel_date >= %s
                   AND r1.stop_order < r2.stop_order
                 GROUP BY b.id
-            """, (f"%{source}%", f"%{destination}%", travel_date))
+            """, (source, destination, travel_date))
             buses = cursor.fetchall()
 
         # Fallback 3: direct route any date
         if not buses:
             cursor.execute("""
                 SELECT * FROM buses
-                WHERE LOWER(source) LIKE LOWER(%s)
-                  AND LOWER(destination) LIKE LOWER(%s)
+                WHERE LOWER(source) = LOWER(%s)
+                  AND LOWER(destination) = LOWER(%s)
                 ORDER BY travel_date ASC
                 LIMIT 20
-            """, (f"%{source}%", f"%{destination}%"))
+            """, (source, destination))
             buses = cursor.fetchall()
 
         # Fallback 4: show all available buses (relaxed) for any route if still empty
@@ -958,7 +985,15 @@ def select_seats(bus_id):
 
         return redirect(url_for("user.payment"))
 
-    return render_template("select_seats.html", bus=bus, routes=routes, seats=seats, booked_seats=booked_seats)
+    display_travel_date = effective_travel_date_from_session(bus)
+    return render_template(
+        "select_seats.html",
+        bus=bus,
+        routes=routes,
+        seats=seats,
+        booked_seats=booked_seats,
+        display_travel_date=display_travel_date,
+    )
 
 @user_bp.route("/payment", methods=["GET", "POST"])
 def payment():
@@ -1048,6 +1083,8 @@ def payment():
         if total_amount <= 0:
             flash("Invalid booking amount. Please try again.", "error")
             return redirect(url_for("user.search"))
+
+        display_travel_date = effective_travel_date_from_session(bus)
         
         if request.method == "POST":
             print("POST REQUEST RECEIVED") 
@@ -1068,14 +1105,16 @@ def payment():
                 return render_template("payment.html", bus=bus, selected_seats=selected_seats,
                                      boarding_point=session['boarding_point'],
                                      dropping_point=session['dropping_point'],
-                                     total_amount=total_amount)
+                                     total_amount=total_amount,
+                                     display_travel_date=display_travel_date)
             
             if payment_method not in valid_payment_methods:
                 flash("Invalid payment method selected.", "error")
                 return render_template("payment.html", bus=bus, selected_seats=selected_seats,
                                      boarding_point=session['boarding_point'],
                                      dropping_point=session['dropping_point'],
-                                     total_amount=total_amount)
+                                     total_amount=total_amount,
+                                     display_travel_date=display_travel_date)
             
             # Simulate payment success
             import time
@@ -1094,6 +1133,7 @@ def payment():
             try:
                 # Generate booking ID
                 booking_code = "BUS" + str(random.randint(1000, 9999))
+                booking_travel_date = effective_travel_date_from_session(bus)
 
                 cursor.execute("""
                 INSERT INTO bookings(
@@ -1112,7 +1152,7 @@ def payment():
                     session['dropping_point'],
                     total_amount,
                     payment_method,
-                    bus['travel_date'],   # ✅ FIXES "None"
+                    booking_travel_date,
                     booking_code          # ✅ BOOKING ID
                 ))
                 
@@ -1124,6 +1164,7 @@ def payment():
                 session.pop('boarding_point', None)
                 session.pop('dropping_point', None)
                 session.pop('bus_id', None)
+                session.pop('search_travel_date', None)
                 
                 flash("Payment successful! Your booking is confirmed.", "success")
                 return redirect(url_for("user.booking_confirmation", booking_id=booking_id))
@@ -1135,13 +1176,15 @@ def payment():
                 return render_template("payment.html", bus=bus, selected_seats=selected_seats,
                                      boarding_point=session['boarding_point'],
                                      dropping_point=session['dropping_point'],
-                                     total_amount=total_amount)
+                                     total_amount=total_amount,
+                                     display_travel_date=display_travel_date)
         
         # GET request - Show payment form
         return render_template("payment.html", bus=bus, selected_seats=selected_seats,
                              boarding_point=session['boarding_point'],
                              dropping_point=session['dropping_point'],
-                             total_amount=total_amount)
+                             total_amount=total_amount,
+                             display_travel_date=display_travel_date)
     
     except mysql.connector.Error as db_error:
         print(f"Database error in payment route: {db_error}")
@@ -1199,12 +1242,13 @@ def booking_history():
     db = get_db_connection()
     cursor = db.cursor(dictionary=True)
 
+    # Do not select buses.travel_date here: it shares the key `travel_date` with b.* and overwrites the booking date in dict rows.
     cursor.execute("""
         SELECT b.*, buses.bus_name, buses.source, buses.destination,
-               buses.travel_date, buses.departure_time, buses.arrival_time
+               buses.departure_time, buses.arrival_time
         FROM bookings b
         JOIN buses ON b.bus_id = buses.id
-        WHERE b.user_id = %s AND b.status = 'confirmed'
+        WHERE b.user_id = %s
         ORDER BY b.booking_date DESC
     """, (session['user_id'],))
 
@@ -1215,29 +1259,137 @@ def booking_history():
 
     return render_template("booking_history.html", bookings=bookings)
 
-@user_bp.route("/cancel_booking/<int:booking_id>", methods=["POST"])
-def cancel_booking(booking_id):
-    """Cancel booking"""
+@user_bp.route("/refund_info/<int:booking_id>")
+def refund_info(booking_id):
+    """Return refund details for a booking without cancelling."""
     db = get_db_connection()
-    cursor = db.cursor()
+    cursor = db.cursor(dictionary=True)
 
-    # Check if booking belongs to user and is not already cancelled
     cursor.execute("""
-        SELECT id FROM bookings
-        WHERE id = %s AND user_id = %s AND status = 'confirmed'
+        SELECT b.id, b.total_amount, b.status, b.travel_date AS booking_travel_date,
+               buses.departure_time, buses.travel_date AS bus_travel_date
+        FROM bookings b
+        JOIN buses ON b.bus_id = buses.id
+        WHERE b.id = %s AND b.user_id = %s
     """, (booking_id, session['user_id']))
 
-    if cursor.fetchone():
-        cursor.execute("""
-            UPDATE bookings SET status = 'cancelled'
-            WHERE id = %s
-        """, (booking_id,))
-        db.commit()
-        flash("Booking cancelled successfully", "success")
+    booking = cursor.fetchone()
+    cursor.close()
+    db.close()
+
+    if not booking:
+        return jsonify({"success": False, "message": "Booking not found"}), 404
+
+    if booking.get('status') != 'confirmed':
+        return jsonify({"success": False, "message": "Refund info is available only for confirmed bookings"}), 400
+
+    travel_date_effective = booking.get('booking_travel_date') or booking.get('bus_travel_date')
+    departure_time_obj = (datetime.min + booking['departure_time']).time()
+    travel_datetime = datetime.combine(travel_date_effective, departure_time_obj)
+    current_time = datetime.now()
+    time_diff = travel_datetime - current_time
+
+    if time_diff < timedelta(hours=2):
+        return jsonify({
+            "success": True,
+            "can_cancel": False,
+            "policy": "Cancellation not allowed within 2 hours of departure.",
+            "refund_percentage": 0,
+            "refund_amount": 0
+        })
+
+    if time_diff > timedelta(hours=24):
+        refund_percentage = 90
     else:
+        refund_percentage = 50
+
+    refund_amount = float(booking['total_amount']) * (refund_percentage / 100)
+
+    return jsonify({
+        "success": True,
+        "can_cancel": True,
+        "policy": "90% refund if cancelled before 24 hours, 50% refund if cancelled 2-24 hours before departure.",
+        "refund_percentage": refund_percentage,
+        "refund_amount": round(refund_amount, 2)
+    })
+
+@user_bp.route("/cancel_booking/<int:booking_id>", methods=["POST"])
+def cancel_booking(booking_id):
+    """Cancel booking with refund calculation"""
+    db = get_db_connection()
+    cursor = db.cursor(dictionary=True)
+
+    # Get booking details with bus info (bus_travel_date avoids overwriting b.travel_date from b.*)
+    cursor.execute("""
+        SELECT b.*, buses.departure_time, buses.travel_date AS bus_travel_date
+        FROM bookings b
+        JOIN buses ON b.bus_id = buses.id
+        WHERE b.id = %s AND b.user_id = %s AND b.status = 'confirmed'
+    """, (booking_id, session['user_id']))
+
+    booking = cursor.fetchone()
+
+    if not booking:
         flash("Booking not found or already cancelled", "error")
+        return redirect(url_for("user.booking_history"))
+
+    travel_date_effective = booking.get('travel_date') or booking.get('bus_travel_date')
+
+    # Check cancellation policy - no cancellation within 2 hours of departure
+    from datetime import datetime, timedelta
+    departure_time_obj = (datetime.min + booking['departure_time']).time()
+    travel_datetime = datetime.combine(travel_date_effective, departure_time_obj)
+    current_time = datetime.now()
+
+    if travel_datetime - current_time < timedelta(hours=2):
+        flash("Cancellation not allowed within 2 hours of departure", "error")
+        return redirect(url_for("user.booking_history"))
+
+    # Calculate refund amount (90% if more than 24 hours, 50% if 2-24 hours)
+    time_diff = travel_datetime - current_time
+    total = float(booking['total_amount'])
+    if time_diff > timedelta(hours=24):
+        refund_amount = total * 0.9  # 90% refund
+    else:
+        refund_amount = total * 0.5  # 50% refund
+
+    # Update booking status and add refund info
+    cursor.execute("""
+        UPDATE bookings
+        SET status = 'cancelled', refund_amount = %s, cancelled_at = NOW()
+        WHERE id = %s
+    """, (refund_amount, booking_id))
+
+    db.commit()
+    flash(f"Booking cancelled successfully. Refund amount: ₹{refund_amount:.2f} will be processed within 5-7 business days.", "success")
 
     return redirect(url_for("user.booking_history"))
+
+@user_bp.route("/view_ticket/<int:booking_id>")
+def view_ticket(booking_id):
+    """View ticket in browser"""
+    db = get_db_connection()
+    cursor = db.cursor(dictionary=True)
+
+    cursor.execute("""
+        SELECT b.*, buses.bus_name, buses.source, buses.destination,
+               buses.bus_type, buses.operator, buses.departure_time, buses.arrival_time, buses.price
+        FROM bookings b
+        JOIN buses ON b.bus_id = buses.id
+        WHERE b.id = %s AND b.user_id = %s
+    """, (booking_id, session['user_id']))
+
+    booking = cursor.fetchone()
+
+    if not booking:
+        flash("Booking not found", "error")
+        return redirect(url_for("user.booking_history"))
+
+    # Parse seats
+    booking['seats_list'] = json.loads(booking['seats'])
+    booking['seat_count'] = len(booking['seats_list'])
+
+    return render_template("ticket.html", booking=booking)
 
 @user_bp.route("/download_ticket/<int:booking_id>")
 def download_ticket(booking_id):
@@ -1247,7 +1399,7 @@ def download_ticket(booking_id):
 
     cursor.execute("""
         SELECT b.*, buses.bus_name, buses.source, buses.destination,
-               buses.travel_date, buses.departure_time, buses.arrival_time
+               buses.bus_type, buses.operator, buses.departure_time, buses.arrival_time
         FROM bookings b
         JOIN buses ON b.bus_id = buses.id
         WHERE b.id = %s AND b.user_id = %s

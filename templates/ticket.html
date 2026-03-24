@@ -77,7 +77,7 @@
                 <!-- Passenger & Contact -->
                 <div class="row mb-3">
                     <div class="col-md-6">
-                        <strong>Passenger Name:</strong> {{ booking.user_name }}
+                        <strong>Passenger Name:</strong> {{ booking.passenger_name }}
                     </div>
                     <div class="col-md-6">
                         <strong>Email:</strong> {{ booking.email }}
@@ -94,9 +94,9 @@
                             <p><strong>Route:</strong> {{ booking.source }} → {{ booking.destination }}</p>
                         </div>
                         <div class="col-md-6">
-                            <p><strong>Travel Date:</strong> {{ booking.travel_date }}</p>
-                            <p><strong>Departure:</strong> {{ booking.departure_time }}</p>
-                            <p><strong>Arrival:</strong> {{ booking.arrival_time }}</p>
+                            <p><strong>Travel Date:</strong> {{ booking.travel_date.strftime('%Y-%m-%d') if booking.travel_date else 'N/A' }}</p>
+                            <p><strong>Departure:</strong> {{ "%02d:%02d"|format(booking.departure_time.seconds // 3600, (booking.departure_time.seconds % 3600) // 60) if booking.departure_time else 'N/A' }}</p>
+                            <p><strong>Arrival:</strong> {{ "%02d:%02d"|format(booking.arrival_time.seconds // 3600, (booking.arrival_time.seconds % 3600) // 60) if booking.arrival_time else 'N/A' }}</p>
                         </div>
                     </div>
                 </div>
@@ -106,15 +106,19 @@
                     <h5 class="mb-3"><i class="fas fa-chair"></i> Seat & Payment Details</h5>
                     <div class="row">
                         <div class="col-md-6">
-                            <p><strong>Seat Numbers:</strong> {{ booking.seats }}</p>
+                            <p><strong>Seat Numbers:</strong>
+                                {% for seat in booking.seats_list %}
+                                    <span class="badge bg-primary me-1">{{ seat.number }}</span>
+                                {% endfor %}
+                            </p>
                             <p><strong>Passenger Name:</strong> {{ booking.passenger_name }}</p>
-                            {% if booking.phone %}
-                            <p><strong>Phone:</strong> {{ booking.phone }}</p>
+                            {% if booking.contact_number %}
+                            <p><strong>Phone:</strong> {{ booking.contact_number }}</p>
                             {% endif %}
                         </div>
                         <div class="col-md-6">
-                            <p><strong>Price per Seat:</strong> ₹{{ "%.2f"|format(booking.price) }}</p>
-                            <p><strong>Number of Seats:</strong> {{ booking.seats.split(',').__len__() }}</p>
+                            <p><strong>Base Price per Seat:</strong> ₹{{ "%.2f"|format(booking.price or 0) }}</p>
+                            <p><strong>Number of Seats:</strong> {{ booking.seat_count }}</p>
                             <p><strong>Total Amount:</strong> ₹{{ "%.2f"|format(booking.total_amount) }}</p>
                             <p><strong>Payment Status:</strong>
                                 <span class="badge bg-success">Paid</span>
@@ -123,12 +127,14 @@
                     </div>
                 </div>
 
-                <!-- QR Code Placeholder -->
+                <!-- QR Code -->
                 <div class="qr-code">
-                    <div style="border: 2px solid #dee2e6; padding: 20px; display: inline-block; border-radius: 10px;">
-                        <i class="fas fa-qrcode fa-4x text-muted"></i>
-                        <p class="mb-0 mt-2 text-muted">Scan for verification</p>
-                    </div>
+                    <img
+                        src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data={{ ('Booking ID: ' ~ booking.booking_id ~ ', Passenger: ' ~ booking.passenger_name ~ ', Route: ' ~ booking.source ~ ' to ' ~ booking.destination ~ ', Date: ' ~ (booking.travel_date.strftime('%Y-%m-%d') if booking.travel_date else 'N/A')) | urlencode }}"
+                        alt="Ticket QR Code"
+                        class="img-fluid rounded border p-2 bg-white"
+                    />
+                    <p class="mb-0 mt-2 text-muted">Scan for verification</p>
                 </div>
 
                 <!-- Important Notes -->
