@@ -108,6 +108,10 @@
                                     <div>{{ booking.bus_name }}</div>
                                 </div>
                                 <div class="mb-3">
+                                    <label class="form-label fw-bold">Bus Details</label>
+                                    <div>{{ booking.bus_type }} | {{ booking.double_decker_label }} | {{ booking.seat_layout_label }}</div>
+                                </div>
+                                <div class="mb-3">
                                     <label class="form-label fw-bold">Route</label>
                                     <div>{{ booking.source }} &rarr; {{ booking.destination }}</div>
                                 </div>
@@ -228,6 +232,9 @@
                 <div class="text-center">
                     <a href="{{ url_for('user.view_ticket', booking_id=booking.id) }}" class="btn btn-info me-3">
                         <i class="fas fa-eye me-2"></i>View Ticket
+                    </a>
+                    <a href="{{ url_for('user.track_bus', booking_id=booking.id) }}" class="btn btn-outline-info me-3">
+                        <i class="fas fa-map-marker-alt me-2"></i>Track Bus
                     </a>
                     <a href="{{ url_for('user.download_ticket', booking_id=booking.id) }}" class="btn btn-primary me-3">
                         <i class="fas fa-download me-2"></i>Download Ticket

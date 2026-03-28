@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="700" viewBox="0 0 1200 700">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#bfe3ff"/>
+      <stop offset="100%" stop-color="#f3fbff"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="700" fill="#edf5fb"/>
+  <rect x="90" y="90" width="1020" height="520" rx="34" fill="#ffffff" stroke="#d9e4ef" stroke-width="5"/>
+  <rect x="140" y="135" width="920" height="220" rx="24" fill="url(#sky)" stroke="#d3e1ee" stroke-width="4"/>
+  <path d="M140 290 Q290 240 440 285 T740 290 T1060 280 V355 H140 Z" fill="#cfe4d3"/>
+  <g fill="#dfeaf6">
+    <rect x="180" y="400" width="170" height="130" rx="28"/>
+    <rect x="390" y="400" width="170" height="130" rx="28"/>
+    <rect x="640" y="400" width="170" height="130" rx="28"/>
+    <rect x="850" y="400" width="170" height="130" rx="28"/>
+  </g>
+  <text x="150" y="585" fill="#24384d" font-size="30" font-family="Arial" font-weight="bold">Window-side seating and outside view for a real travel feel</text>
+</svg>

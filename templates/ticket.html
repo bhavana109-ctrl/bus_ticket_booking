@@ -91,6 +91,8 @@
                         <div class="col-md-6">
                             <p><strong>Bus Name:</strong> {{ booking.bus_name }}</p>
                             <p><strong>Bus Type:</strong> {{ booking.bus_type }}</p>
+                            <p><strong>Bus Deck:</strong> {{ booking.double_decker_label }}</p>
+                            <p><strong>Seat Type:</strong> {{ booking.seat_layout_label }}</p>
                             <p><strong>Route:</strong> {{ booking.source }} → {{ booking.destination }}</p>
                         </div>
                         <div class="col-md-6">
@@ -143,6 +145,23 @@
                     <p><em>No emergency medical items requested.</em></p>
                 </div>
                 {% endif %}
+
+                <!-- Entertainment Items -->
+                {% if booking.entertainment_items %}
+                <div class="ticket-details">
+                    <h5 class="mb-3"><i class="fas fa-gamepad"></i> Entertainment Items Selected</h5>
+                    <p>
+                        {% for item in booking.entertainment_items %}
+                            <span class="badge bg-info me-1">{{ item }}</span>
+                        {% endfor %}
+                    </p>
+                </div>
+                {% else %}
+                <div class="ticket-details">
+                    <h5 class="mb-3"><i class="fas fa-gamepad"></i> Entertainment Items Selected</h5>
+                    <p><em>No entertainment items selected.</em></p>
+                </div>
+                {% endif %}
                     </div>
                 </div>
 
@@ -175,17 +194,22 @@
             <!-- Footer -->
             <div class="ticket-footer no-print">
                 <div class="row">
-                    <div class="col-md-4">
+                    <div class="col-md-3">
                         <a href="/booking_history" class="btn btn-outline-primary w-100">
                             <i class="fas fa-history"></i> My Bookings
                         </a>
                     </div>
-                    <div class="col-md-4">
+                    <div class="col-md-3">
+                        <a href="{{ url_for('user.track_bus', booking_id=booking.id) }}" class="btn btn-outline-info w-100">
+                            <i class="fas fa-map-marker-alt"></i> Track Bus
+                        </a>
+                    </div>
+                    <div class="col-md-3">
                         <button onclick="window.print()" class="btn btn-outline-secondary w-100">
                             <i class="fas fa-print"></i> Print Ticket
                         </button>
                     </div>
-                    <div class="col-md-4">
+                    <div class="col-md-3">
                         <a href="/" class="btn btn-outline-success w-100">
                             <i class="fas fa-home"></i> Home
                         </a>

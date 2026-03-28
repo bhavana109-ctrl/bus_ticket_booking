@@ -87,6 +87,273 @@ def calculate_duration(departure_time, arrival_time):
     return f"{hours}h {minutes}m"
 
 
+def derive_bus_preferences(bus_row):
+    """Populate normalized bus preference fields for templates and legacy rows."""
+    bus_type = str((bus_row or {}).get('bus_type') or '').strip()
+    seat_layout = str((bus_row or {}).get('seat_layout') or '').strip()
+    is_double_decker = bus_row.get('is_double_decker') if bus_row else 0
+
+    if not seat_layout:
+        lowered_bus_type = bus_type.lower()
+        if 'sleeper' in lowered_bus_type:
+            seat_layout = 'Sleeper'
+        elif 'seater' in lowered_bus_type or 'sitting' in lowered_bus_type:
+            seat_layout = 'Sitting'
+        else:
+            seat_layout = 'Sitting'
+
+    if is_double_decker in (None, ''):
+        is_double_decker = 1 if 'double decker' in bus_type.lower() else 0
+
+    bus_row['seat_layout'] = seat_layout
+    bus_row['seat_layout_label'] = seat_layout
+    bus_row['is_double_decker'] = int(bool(is_double_decker))
+    bus_row['double_decker_label'] = 'Double Decker' if bus_row['is_double_decker'] else 'Single Decker'
+    return bus_row
+
+
+def build_bus_interior_gallery(bus_row):
+    """Return bundled interior image assets for the selected bus."""
+    bus_type = str(bus_row.get('bus_type') or 'Bus')
+    seat_layout = str(bus_row.get('seat_layout_label') or bus_row.get('seat_layout') or 'Sitting')
+    is_double_decker = int(bus_row.get('is_double_decker') or 0) == 1
+
+    primary_file = "bus_interior_ac_seater.svg"
+    if is_double_decker:
+        primary_file = "bus_interior_double_decker.svg"
+    elif seat_layout == "Sleeper":
+        primary_file = "bus_interior_sleeper.svg"
+    elif bus_type == "Non-AC":
+        primary_file = "bus_interior_nonac_seater.svg"
+
+    return [
+        {"title": f"{bus_row.get('bus_name', 'Bus')} - Front Cabin View", "url": url_for('static', filename=f'bus_interiors/{primary_file}')},
+        {"title": f"{bus_row.get('bus_name', 'Bus')} - Passenger Seating Area", "url": url_for('static', filename='bus_interiors/bus_interior_lounge_view.svg')},
+        {"title": f"{bus_row.get('bus_name', 'Bus')} - Window Side Interior", "url": url_for('static', filename='bus_interiors/bus_interior_window_view.svg')},
+    ]
+
+
+SAMPLE_ROUTE_CATALOG = [
+    {"source": "Kochi", "destination": "Coimbatore", "stops": ["Kochi", "Thrissur", "Palakkad", "Coimbatore"], "duration_hours": 8},
+    {"source": "Calicut", "destination": "Trivandrum", "stops": ["Calicut", "Kannur", "Kochi", "Trivandrum"], "duration_hours": 11},
+    {"source": "Chennai", "destination": "Bangalore", "stops": ["Chennai", "Vellore", "Krishnagiri", "Bangalore"], "duration_hours": 7},
+    {"source": "Bangalore", "destination": "Chennai", "stops": ["Bangalore", "Hosur", "Krishnagiri", "Chennai"], "duration_hours": 7},
+    {"source": "Mumbai", "destination": "Pune", "stops": ["Mumbai", "Thane", "Lonavala", "Pune"], "duration_hours": 4},
+    {"source": "Pune", "destination": "Goa", "stops": ["Pune", "Satara", "Kolhapur", "Goa"], "duration_hours": 9},
+    {"source": "Delhi", "destination": "Jaipur", "stops": ["Delhi", "Gurugram", "Neemrana", "Jaipur"], "duration_hours": 6},
+    {"source": "Hyderabad", "destination": "Bangalore", "stops": ["Hyderabad", "Kurnool", "Anantapur", "Bangalore"], "duration_hours": 9},
+]
+
+SAMPLE_BUS_VARIANTS = [
+    {
+        "name_template": "GreenLine Express",
+        "bus_type": "AC",
+        "seat_layout": "Sitting",
+        "is_double_decker": 0,
+        "seats_total": 40,
+        "price_factor": 1.00,
+        "rating": 4.2,
+        "operator": "ExpressLine",
+        "amenities": ["WiFi", "Charging", "Water", "AC"],
+        "departure_time": "06:30:00",
+    },
+    {
+        "name_template": "CityConnect",
+        "bus_type": "Non-AC",
+        "seat_layout": "Sitting",
+        "is_double_decker": 0,
+        "seats_total": 44,
+        "price_factor": 0.82,
+        "rating": 4.0,
+        "operator": "BudgetRide",
+        "amenities": ["Water", "Charging"],
+        "departure_time": "09:45:00",
+    },
+    {
+        "name_template": "Night Rider Sleeper",
+        "bus_type": "Sleeper",
+        "seat_layout": "Sleeper",
+        "is_double_decker": 0,
+        "seats_total": 32,
+        "price_factor": 1.28,
+        "rating": 4.6,
+        "operator": "NightStar",
+        "amenities": ["WiFi", "Charging", "Water", "Blanket", "Pillow", "AC"],
+        "departure_time": "21:00:00",
+    },
+    {
+        "name_template": "SkyLine Double Deck",
+        "bus_type": "Double Decker",
+        "seat_layout": "Sitting",
+        "is_double_decker": 1,
+        "seats_total": 48,
+        "price_factor": 1.12,
+        "rating": 4.5,
+        "operator": "SkyDeck",
+        "amenities": ["WiFi", "Charging", "Water", "Entertainment"],
+        "departure_time": "14:15:00",
+    },
+]
+
+
+def _time_text(dt_obj):
+    return dt_obj.strftime("%H:%M:%S")
+
+
+def build_seed_bus_name(label, source, destination, travel_date_text):
+    """Create a realistic but distinct scheduled bus service name."""
+    try:
+        service_day = datetime.strptime(str(travel_date_text), "%Y-%m-%d").strftime("%a")
+    except Exception:
+        service_day = "Express"
+    return f"{label} {service_day} {source} - {destination}"
+
+
+def normalize_sample_bus_names():
+    """Rename generic seeded buses to more realistic bus names."""
+    db = get_db_connection()
+    cursor = db.cursor(dictionary=True)
+
+    rename_rules = [
+        ("AC", "Sitting", 0, "GreenLine Express"),
+        ("Non-AC", "Sitting", 0, "CityConnect"),
+        ("Sleeper", "Sleeper", 0, "Night Rider Sleeper"),
+        ("Double Decker", "Sitting", 1, "SkyLine Double Deck"),
+    ]
+
+    try:
+        cursor.execute("SELECT id, bus_name, source, destination, travel_date, bus_type, seat_layout, is_double_decker FROM buses")
+        buses = cursor.fetchall()
+        for bus in buses:
+            current_name = str(bus.get("bus_name") or "")
+            for bus_type, seat_layout, is_double_decker, label in rename_rules:
+                generated_suffix = f"{bus.get('source', '')} {bus.get('destination', '')} "
+                if (
+                    str(bus.get("bus_type") or "") == bus_type
+                    and str(bus.get("seat_layout") or "") == seat_layout
+                    and int(bus.get("is_double_decker") or 0) == is_double_decker
+                    and (
+                        current_name.startswith(generated_suffix)
+                        or current_name.startswith(label)
+                    )
+                ):
+                    new_name = build_seed_bus_name(label, bus.get('source'), bus.get('destination'), bus.get('travel_date'))
+                    cursor.execute("UPDATE buses SET bus_name = %s WHERE id = %s", (new_name, bus["id"]))
+                    break
+        db.commit()
+    finally:
+        cursor.close()
+        db.close()
+
+
+def ensure_sample_bus_inventory():
+    """Seed multiple bus options per route/date so passengers have variety."""
+    db = get_db_connection()
+    cursor = db.cursor(dictionary=True)
+
+    try:
+        for day_offset in range(3):
+            travel_date = (datetime.now().date() + timedelta(days=day_offset)).strftime("%Y-%m-%d")
+            for route in SAMPLE_ROUTE_CATALOG:
+                cursor.execute(
+                    """
+                    SELECT COUNT(*) AS cnt
+                    FROM buses
+                    WHERE LOWER(source) = LOWER(%s)
+                      AND LOWER(destination) = LOWER(%s)
+                      AND travel_date = %s
+                    """,
+                    (route["source"], route["destination"], travel_date),
+                )
+                existing_count = int((cursor.fetchone() or {}).get("cnt") or 0)
+                if existing_count >= 4:
+                    continue
+
+                for variant in SAMPLE_BUS_VARIANTS[existing_count:4]:
+                    departure_dt = datetime.strptime(variant["departure_time"], "%H:%M:%S")
+                    arrival_dt = departure_dt + timedelta(hours=route["duration_hours"])
+                    base_price = max(350, int(route["duration_hours"] * 130 * variant["price_factor"]))
+                    bus_name = build_seed_bus_name(variant['name_template'], route['source'], route['destination'], travel_date)
+
+                    cursor.execute(
+                        """
+                        INSERT INTO buses (
+                            bus_name, source, destination, stops, departure_time, arrival_time,
+                            travel_date, price, seats_total, bus_type, amenities, rating, operator,
+                            is_double_decker, seat_layout
+                        )
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        """,
+                        (
+                            bus_name,
+                            route["source"],
+                            route["destination"],
+                            json.dumps(route["stops"]),
+                            _time_text(departure_dt),
+                            _time_text(arrival_dt),
+                            travel_date,
+                            round(base_price, 2),
+                            variant["seats_total"],
+                            variant["bus_type"],
+                            json.dumps(variant["amenities"]),
+                            variant["rating"],
+                            variant["operator"],
+                            variant["is_double_decker"],
+                            variant["seat_layout"],
+                        ),
+                    )
+                    bus_id = cursor.lastrowid
+
+                    stop_count = max(1, len(route["stops"]) - 1)
+                    segment_minutes = max(30, int((route["duration_hours"] * 60) / stop_count))
+                    for index, stop_name in enumerate(route["stops"], start=1):
+                        arrival_val = None if index == 1 else _time_text(departure_dt + timedelta(minutes=segment_minutes * (index - 1)))
+                        departure_val = None if index == len(route["stops"]) else _time_text(departure_dt + timedelta(minutes=segment_minutes * (index - 1) + (0 if index == 1 else 10)))
+                        cursor.execute(
+                            """
+                            INSERT INTO routes (bus_id, stop_name, stop_order, arrival_time, departure_time)
+                            VALUES (%s, %s, %s, %s, %s)
+                            """,
+                            (bus_id, stop_name, index, arrival_val, departure_val),
+                        )
+
+                    default_seat_type = 'Sleeper' if variant["seat_layout"] == 'Sleeper' else 'Seater'
+                    price_modifier = 1.15 if variant["seat_layout"] == 'Sleeper' else (1.08 if variant["is_double_decker"] else 1.0)
+                    upper_start = (variant["seats_total"] // 2) + 1
+                    for seat_number in range(1, variant["seats_total"] + 1):
+                        deck = 'Upper' if variant["is_double_decker"] and seat_number >= upper_start else 'Lower'
+                        cursor.execute(
+                            """
+                            INSERT INTO seat_details (bus_id, seat_number, seat_type, deck, gender_restriction, price_modifier)
+                            VALUES (%s, %s, %s, %s, %s, %s)
+                            """,
+                            (bus_id, str(seat_number), default_seat_type, deck, 'None', price_modifier),
+                        )
+
+                    cursor.execute(
+                        """
+                        INSERT INTO bus_locations (
+                            bus_id, latitude, longitude, current_stop, next_stop, estimated_arrival, status
+                        )
+                        VALUES (%s, %s, %s, %s, %s, %s, %s)
+                        """,
+                        (
+                            bus_id,
+                            12.9716 + (day_offset * 0.01),
+                            77.5946 + (existing_count * 0.01),
+                            route["source"],
+                            route["stops"][1] if len(route["stops"]) > 1 else route["destination"],
+                            _time_text(departure_dt + timedelta(minutes=segment_minutes)),
+                            'not_started',
+                        ),
+                    )
+
+        db.commit()
+    finally:
+        cursor.close()
+        db.close()
+
+
 def ensure_date(value):
     """Normalize date-like values for templates and email rendering."""
     if value is None:
@@ -179,6 +446,8 @@ def ensure_bus_schema():
         'stops': "JSON NULL",
         'amenities': "JSON NULL",
         'bus_type': "VARCHAR(20) DEFAULT 'Non-AC'",
+        'is_double_decker': "TINYINT(1) DEFAULT 0",
+        'seat_layout': "VARCHAR(20) DEFAULT 'Sitting'",
         'rating': "DECIMAL(3,2) DEFAULT 4.5",
         'operator': "VARCHAR(100) DEFAULT 'BusHub'",
     }
@@ -400,6 +669,8 @@ def initialize_db():
         # Always keep schema additions in sync (prevents crashes on older DBs).
         ensure_bus_schema()
         ensure_bus_locations_table()
+        ensure_sample_bus_inventory()
+        normalize_sample_bus_names()
         if db_initialized:
             return
 
@@ -447,6 +718,101 @@ def format_time_value(time_value):
         minutes = (time_value.seconds % 3600) // 60
         return f"{hours:02d}:{minutes:02d}"
     return str(time_value)
+
+
+def combine_date_and_time_safe(date_value, time_value):
+    """Combine date/time values into datetime when both are valid."""
+    date_obj = ensure_date(date_value)
+    time_obj = ensure_time(time_value)
+    if not date_obj or not time_obj:
+        return None
+    if isinstance(date_obj, datetime):
+        date_obj = date_obj.date()
+    return datetime.combine(date_obj, time_obj)
+
+
+def build_live_tracking_data(booking, location_row, route_rows):
+    """Build live tracking snapshot for passenger tracking page/API."""
+    now = datetime.now()
+    route_stops = [r.get("stop_name") for r in (route_rows or []) if r.get("stop_name")]
+    if not route_stops:
+        if booking.get("source"):
+            route_stops.append(booking["source"])
+        if booking.get("destination") and booking["destination"] not in route_stops:
+            route_stops.append(booking["destination"])
+
+    source = booking.get("source") or (route_stops[0] if route_stops else None)
+    destination = booking.get("destination") or (route_stops[-1] if route_stops else None)
+    if not route_stops and source and destination:
+        route_stops = [source, destination]
+
+    dep_dt = combine_date_and_time_safe(booking.get("travel_date"), booking.get("departure_time"))
+    arr_dt = combine_date_and_time_safe(booking.get("travel_date"), booking.get("arrival_time"))
+    if dep_dt and arr_dt and arr_dt < dep_dt:
+        arr_dt += timedelta(days=1)
+
+    status = "not_started"
+    current_stop = source
+    next_stop = route_stops[1] if len(route_stops) > 1 else destination
+    eta_text = dep_dt.strftime("%H:%M") if dep_dt else None
+    progress_pct = 0
+
+    if dep_dt and arr_dt:
+        if now >= arr_dt:
+            status = "arrived"
+            current_stop = destination or current_stop
+            next_stop = None
+            eta_text = None
+            progress_pct = 100
+        elif now >= dep_dt:
+            status = "in_transit"
+            total_seconds = max(1, int((arr_dt - dep_dt).total_seconds()))
+            elapsed_seconds = int((now - dep_dt).total_seconds())
+            progress_pct = min(99, max(1, round((elapsed_seconds / total_seconds) * 100)))
+
+            if len(route_stops) >= 2:
+                segments = len(route_stops) - 1
+                segment_seconds = total_seconds / segments
+                segment_index = min(segments - 1, int(elapsed_seconds / segment_seconds))
+                current_stop = route_stops[segment_index]
+                next_stop = route_stops[segment_index + 1]
+                eta_for_next = dep_dt + timedelta(seconds=int(segment_seconds * (segment_index + 1)))
+                eta_text = eta_for_next.strftime("%H:%M")
+
+    if location_row:
+        if location_row.get("status"):
+            status = location_row["status"]
+        if location_row.get("current_stop"):
+            current_stop = location_row["current_stop"]
+        if location_row.get("next_stop"):
+            next_stop = location_row["next_stop"]
+        if location_row.get("estimated_arrival"):
+            eta_obj = ensure_time(location_row["estimated_arrival"])
+            if eta_obj:
+                eta_text = eta_obj.strftime("%H:%M")
+
+    status_labels = {
+        "not_started": "Not Started",
+        "in_transit": "In Transit",
+        "arrived": "Arrived",
+        "delayed": "Delayed"
+    }
+
+    return {
+        "bus_id": booking["bus_id"],
+        "bus_name": booking.get("bus_name"),
+        "booking_id": booking.get("booking_id"),
+        "status": status,
+        "status_label": status_labels.get(status, "In Transit"),
+        "current_stop": current_stop,
+        "next_stop": next_stop,
+        "estimated_arrival": eta_text,
+        "progress": progress_pct,
+        "route_stops": route_stops,
+        "latitude": float(location_row["latitude"]) if location_row and location_row.get("latitude") is not None else None,
+        "longitude": float(location_row["longitude"]) if location_row and location_row.get("longitude") is not None else None,
+        "last_updated": location_row.get("last_updated").strftime("%Y-%m-%d %H:%M:%S") if location_row and location_row.get("last_updated") else None,
+    }
 
 def send_booking_confirmation_email(booking):
     """Send booking confirmation email immediately after a successful booking."""
@@ -554,26 +920,62 @@ def generate_ticket_pdf(booking):
     c = canvas.Canvas(buffer, pagesize=letter)
     width, height = letter
 
-    # Title
-    c.setFont("Helvetica-Bold", 20)
-    c.drawString(200, height - 50, "BusHub - E-Ticket")
+    derive_bus_preferences(booking)
+    seats_list = booking.get('seats_list')
+    if not seats_list:
+        try:
+            seats_list = json.loads(booking.get('seats') or '[]')
+        except Exception:
+            seats_list = []
 
-    # Booking details
-    c.setFont("Helvetica", 12)
-    y = height - 100
-    c.drawString(50, y, f"Booking ID: {booking['id']}")
-    c.drawString(50, y - 20, f"Passenger: {booking['passenger_name']}")
-    c.drawString(50, y - 40, f"Bus: {booking['bus_name']}")
-    c.drawString(50, y - 60, f"Route: {booking['source']} → {booking['destination']}")
-    c.drawString(50, y - 80, f"Date: {booking['travel_date']}")
-    c.drawString(50, y - 100, f"Seats: {', '.join([s['number'] for s in json.loads(booking['seats'])])}")
-    c.drawString(50, y - 120, f"Boarding: {booking['boarding_point']}")
-    c.drawString(50, y - 140, f"Dropping: {booking['dropping_point']}")
-    c.drawString(50, y - 160, f"Total Amount: ₹{booking['total_amount']}")
+    seat_numbers = [str(s.get('number') if isinstance(s, dict) else s) for s in seats_list]
+    travel_date = ensure_date(booking.get('travel_date'))
+    travel_date_text = travel_date.strftime('%Y-%m-%d') if hasattr(travel_date, 'strftime') else (travel_date or 'N/A')
+    departure_text = format_time_value(ensure_time(booking.get('departure_time')))
+    arrival_text = format_time_value(ensure_time(booking.get('arrival_time')))
+    verify_url = request.host_url.rstrip('/') + url_for('verify_ticket', booking_id=booking['id'])
+    track_url = request.host_url.rstrip('/') + url_for('user.track_bus', booking_id=booking['id'])
 
-    # QR Code
+    c.setFont("Helvetica-Bold", 22)
+    c.drawString(40, height - 50, "BusHub E-Ticket")
+    c.setFont("Helvetica", 11)
+    c.drawString(40, height - 70, "Please arrive 30 minutes before departure with a valid ID proof.")
+
+    y = height - 105
+
+    def draw_line(label, value, x=40):
+        nonlocal y
+        c.setFont("Helvetica-Bold", 11)
+        c.drawString(x, y, f"{label}:")
+        c.setFont("Helvetica", 11)
+        c.drawString(x + 120, y, str(value))
+        y -= 18
+
+    draw_line("Booking ID", booking.get('booking_id') or booking.get('id'))
+    draw_line("Passenger", booking.get('passenger_name', 'N/A'))
+    draw_line("Bus Name", booking.get('bus_name', 'N/A'))
+    draw_line("Bus Details", f"{booking.get('bus_type', 'N/A')} | {booking.get('seat_layout_label', 'N/A')} | {booking.get('double_decker_label', 'N/A')}")
+    draw_line("Operator", booking.get('operator', 'BusHub'))
+    draw_line("Route", f"{booking.get('source', 'N/A')} -> {booking.get('destination', 'N/A')}")
+    draw_line("Travel Date", travel_date_text)
+    draw_line("Departure", departure_text)
+    draw_line("Arrival", arrival_text)
+    draw_line("Boarding", booking.get('boarding_point', 'N/A'))
+    draw_line("Dropping", booking.get('dropping_point', 'N/A'))
+    draw_line("Seats", ", ".join(seat_numbers) if seat_numbers else "N/A")
+    draw_line("Total Amount", f"Rs. {float(booking.get('total_amount') or 0):.2f}")
+
+    y -= 8
+    c.setFont("Helvetica-Bold", 11)
+    c.drawString(40, y, "Useful Links")
+    y -= 18
+    c.setFont("Helvetica", 9)
+    c.drawString(40, y, f"Track this bus after login: {track_url[:85]}")
+    y -= 14
+    c.drawString(40, y, f"Verify ticket / QR page: {verify_url[:86]}")
+
     qr = qrcode.QRCode(version=1, box_size=5, border=2)
-    qr.add_data(f"Booking ID: {booking['id']}")
+    qr.add_data(verify_url)
     qr.make(fit=True)
     qr_img = qr.make_image(fill_color="black", back_color="white")
 
@@ -585,7 +987,10 @@ def generate_ticket_pdf(booking):
     # Draw QR code on PDF
     from reportlab.lib.utils import ImageReader
     qr_reader = ImageReader(qr_buffer)
-    c.drawImage(qr_reader, 400, y - 120, width=80, height=80)
+    c.drawImage(qr_reader, width - 165, height - 220, width=110, height=110)
+    c.setFont("Helvetica", 9)
+    c.drawString(width - 172, height - 232, "Scan to verify ticket")
+    c.drawString(40, 40, "Live location is available in My Bookings > Track Bus.")
 
     c.save()
     buffer.seek(0)
@@ -996,61 +1401,41 @@ def search():
         # Persist the date the user searched for so booking details match search (bus row may differ in fallback flows).
         session['search_travel_date'] = travel_date
 
-        # Search for buses that have both stops in their route (exact matching)
+        # Show all available buses for the selected route from the chosen date onward.
+        # Exact-date buses naturally appear first because of the ordering.
         cursor.execute("""
             SELECT DISTINCT b.*
             FROM buses b
             JOIN routes r1 ON b.id = r1.bus_id AND LOWER(r1.stop_name) = LOWER(%s)
             JOIN routes r2 ON b.id = r2.bus_id AND LOWER(r2.stop_name) = LOWER(%s)
-            WHERE b.travel_date = %s
+            WHERE b.travel_date >= %s
               AND r1.stop_order < r2.stop_order
             GROUP BY b.id
-        """, (source, destination, travel_date))
+            ORDER BY
+                CASE WHEN b.travel_date = %s THEN 0 ELSE 1 END,
+                b.travel_date ASC,
+                b.departure_time ASC
+        """, (source, destination, travel_date, travel_date))
 
         buses = cursor.fetchall()
 
-        # Fallback 1: exact source/destination on the same date
+        # Fallback 1: direct route buses from the selected date onward
         if not buses:
             cursor.execute("""
                 SELECT * FROM buses
                 WHERE LOWER(source) = LOWER(%s)
                   AND LOWER(destination) = LOWER(%s)
-                  AND travel_date = %s
-            """, (source, destination, travel_date))
-            buses = cursor.fetchall()
-
-        # Fallback 2: route match on upcoming dates if still no results
-        if not buses:
-            cursor.execute("""
-                SELECT DISTINCT b.*
-                FROM buses b
-                JOIN routes r1 ON b.id = r1.bus_id AND LOWER(r1.stop_name) = LOWER(%s)
-                JOIN routes r2 ON b.id = r2.bus_id AND LOWER(r2.stop_name) = LOWER(%s)
                 WHERE b.travel_date >= %s
-                  AND r1.stop_order < r2.stop_order
-                GROUP BY b.id
+                ORDER BY b.travel_date ASC, b.departure_time ASC
             """, (source, destination, travel_date))
-            buses = cursor.fetchall()
-
-        # Fallback 3: direct route any date
-        if not buses:
-            cursor.execute("""
-                SELECT * FROM buses
-                WHERE LOWER(source) = LOWER(%s)
-                  AND LOWER(destination) = LOWER(%s)
-                ORDER BY travel_date ASC
-                LIMIT 20
-            """, (source, destination))
-            buses = cursor.fetchall()
-
-        # Fallback 4: show all available buses (relaxed) for any route if still empty
-        if not buses:
-            cursor.execute("SELECT * FROM buses ORDER BY travel_date ASC LIMIT 30")
             buses = cursor.fetchall()
             if buses:
-                flash("No buses found for your exact search. Showing available buses from all routes instead.", "info")
+                flash("Showing all available buses for the selected route.", "info")
 
         for bus in buses:
+            derive_bus_preferences(bus)
+            bus['interior_gallery'] = build_bus_interior_gallery(bus)
+            bus['interior_preview'] = bus['interior_gallery'][0] if bus.get('interior_gallery') else None
             # Refresh per-bus route data from routes table (preferred)
             route_cursor = db.cursor(dictionary=True)
             route_cursor.execute("SELECT stop_name FROM routes WHERE bus_id = %s ORDER BY stop_order", (bus['id'],))
@@ -1088,10 +1473,12 @@ def search():
             flash("No buses found for the selected route and date", "info")
 
         return render_template("buslist.html", buses=buses, search_data={
-            'from': source, 'to': destination, 'date': travel_date
+            'from': source,
+            'to': destination,
+            'date': travel_date,
         })
 
-    return render_template("search.html", popular_routes=get_popular_routes())
+    return render_template("search.html", popular_routes=get_popular_routes(), current_date=datetime.now().date())
 
 @user_bp.route("/bus/<int:bus_id>")
 def bus_details(bus_id):
@@ -1106,6 +1493,7 @@ def bus_details(bus_id):
     if not bus:
         flash("Bus not found", "error")
         return redirect(url_for("user.search"))
+    derive_bus_preferences(bus)
     
     # Get routes
     cursor.execute("""
@@ -1143,6 +1531,7 @@ def select_seats(bus_id):
     if not bus:
         flash("Bus not found", "error")
         return redirect(url_for("user.search"))
+    derive_bus_preferences(bus)
     
      
     
@@ -1262,6 +1651,7 @@ def payment():
         if not bus:
             flash("Bus not found. Please search again.", "error")
             return redirect(url_for("user.search"))
+        derive_bus_preferences(bus)
 
         selected_seats = session['selected_seats']
         if not selected_seats:
@@ -1496,6 +1886,8 @@ def payment():
                     'departure_time': bus.get('departure_time'),
                     'bus_name': bus['bus_name'],
                     'bus_type': bus.get('bus_type', 'N/A'),
+                    'is_double_decker': bus.get('is_double_decker', 0),
+                    'seat_layout': bus.get('seat_layout', 'Sitting'),
                     'seats': json.dumps(seats_data),
                     'seats_list': seats_data,
                     'total_amount': total_amount,
@@ -1559,7 +1951,7 @@ def booking_confirmation(booking_id):
     cursor.execute("""
         SELECT b.*, buses.bus_name, buses.source, buses.destination,
         buses.departure_time, buses.arrival_time,
-        buses.bus_type, buses.operator
+        buses.bus_type, buses.operator, buses.is_double_decker, buses.seat_layout
         FROM bookings b
         JOIN buses ON b.bus_id = buses.id
         WHERE b.id = %s AND b.user_id = %s
@@ -1588,6 +1980,7 @@ def booking_confirmation(booking_id):
     booking['travel_date'] = ensure_date(booking.get('travel_date'))
     booking['departure_time'] = ensure_time(booking.get('departure_time'))
     booking['arrival_time'] = ensure_time(booking.get('arrival_time'))
+    derive_bus_preferences(booking)
 
     return render_template("confirmation.html", booking=booking)
     try:
@@ -1647,7 +2040,7 @@ def booking_history():
     # Do not select buses.travel_date here: it shares the key `travel_date` with b.* and overwrites the booking date in dict rows.
     cursor.execute("""
         SELECT b.*, buses.bus_name, buses.source, buses.destination,
-               buses.departure_time, buses.arrival_time
+               buses.departure_time, buses.arrival_time, buses.bus_type, buses.is_double_decker, buses.seat_layout
         FROM bookings b
         JOIN buses ON b.bus_id = buses.id
         WHERE b.user_id = %s
@@ -1671,6 +2064,7 @@ def booking_history():
         booking['travel_date'] = ensure_date(booking.get('travel_date'))
         booking['departure_time'] = ensure_time(booking.get('departure_time'))
         booking['arrival_time'] = ensure_time(booking.get('arrival_time'))
+        derive_bus_preferences(booking)
 
     return render_template("booking_history.html", bookings=bookings, current_date=datetime.now().date())
 
@@ -1742,6 +2136,8 @@ def cancel_booking(booking_id):
             buses.source,
             buses.destination,
             buses.bus_type,
+            buses.is_double_decker,
+            buses.seat_layout,
             buses.operator,
             buses.departure_time,
             buses.arrival_time,
@@ -1802,39 +2198,9 @@ def cancel_booking(booking_id):
         print(f"Failed to send cancellation email: {e}")
         # Don't fail the cancellation if email fails
 
-    # Get updated booking details for the cancellation page
-    cursor.execute("""
-        SELECT b.*, buses.bus_name, buses.source, buses.destination,
-               buses.bus_type, buses.operator, buses.departure_time, buses.arrival_time, buses.price
-        FROM bookings b
-        JOIN buses ON b.bus_id = buses.id
-        WHERE b.id = %s
-    """, (booking_id,))
-
-    updated_booking = cursor.fetchone()
     cursor.close()
     db.close()
-
-    if updated_booking:
-        # Parse and normalize values
-        updated_booking['seats_list'] = json.loads(updated_booking['seats'])
-        updated_booking['seat_count'] = len(updated_booking['seats_list'])
-        try:
-            updated_booking['emergency_services'] = json.loads(updated_booking.get('emergency_services') or '[]')
-        except Exception:
-            updated_booking['emergency_services'] = []
-
-        try:
-            updated_booking['entertainment_items'] = json.loads(updated_booking.get('entertainment_items') or '[]')
-        except Exception:
-            updated_booking['entertainment_items'] = []
-
-        updated_booking['travel_date'] = ensure_date(updated_booking.get('travel_date'))
-        updated_booking['departure_time'] = ensure_time(updated_booking.get('departure_time'))
-        updated_booking['arrival_time'] = ensure_time(updated_booking.get('arrival_time'))
-        return render_template("cancellation_details.html", booking=updated_booking)
-    else:
-        return redirect(url_for("user.booking_history"))
+    return redirect(url_for("user.cancellation_details", booking_id=booking_id))
 
 @user_bp.route("/cancellation_details/<int:booking_id>")
 def cancellation_details(booking_id):
@@ -1844,7 +2210,8 @@ def cancellation_details(booking_id):
 
     cursor.execute("""
         SELECT b.*, buses.bus_name, buses.source, buses.destination,
-               buses.bus_type, buses.operator, buses.departure_time, buses.arrival_time, buses.price
+               buses.bus_type, buses.operator, buses.departure_time, buses.arrival_time, buses.price,
+               buses.is_double_decker, buses.seat_layout
         FROM bookings b
         JOIN buses ON b.bus_id = buses.id
         WHERE b.id = %s AND b.user_id = %s AND b.status = 'cancelled'
@@ -1874,6 +2241,11 @@ def cancellation_details(booking_id):
     booking['travel_date'] = ensure_date(booking.get('travel_date'))
     booking['departure_time'] = ensure_time(booking.get('departure_time'))
     booking['arrival_time'] = ensure_time(booking.get('arrival_time'))
+    derive_bus_preferences(booking)
+    total_amount = float(booking.get('total_amount') or 0)
+    refund_amount = float(booking.get('refund_amount') or 0)
+    booking['refund_percentage'] = round((refund_amount / total_amount) * 100, 2) if total_amount else 0
+    booking['refund_policy_text'] = "90% refund if cancelled before 24 hours, 50% refund if cancelled 2-24 hours before departure."
 
     return render_template("cancellation_details.html", booking=booking)
 
@@ -1885,7 +2257,8 @@ def view_ticket(booking_id):
 
     cursor.execute("""
         SELECT b.*, buses.bus_name, buses.source, buses.destination,
-               buses.bus_type, buses.operator, buses.departure_time, buses.arrival_time, buses.price
+               buses.bus_type, buses.operator, buses.departure_time, buses.arrival_time, buses.price,
+               buses.is_double_decker, buses.seat_layout
         FROM bookings b
         JOIN buses ON b.bus_id = buses.id
         WHERE b.id = %s AND b.user_id = %s
@@ -1913,6 +2286,7 @@ def view_ticket(booking_id):
     booking['travel_date'] = ensure_date(booking.get('travel_date'))
     booking['departure_time'] = ensure_time(booking.get('departure_time'))
     booking['arrival_time'] = ensure_time(booking.get('arrival_time'))
+    derive_bus_preferences(booking)
 
     return render_template("ticket.html", booking=booking)
 
@@ -1924,7 +2298,8 @@ def download_ticket(booking_id):
 
     cursor.execute("""
         SELECT b.*, buses.bus_name, buses.source, buses.destination,
-               buses.bus_type, buses.operator, buses.departure_time, buses.arrival_time
+               buses.bus_type, buses.operator, buses.departure_time, buses.arrival_time,
+               buses.is_double_decker, buses.seat_layout
         FROM bookings b
         JOIN buses ON b.bus_id = buses.id
         WHERE b.id = %s AND b.user_id = %s
@@ -1935,6 +2310,8 @@ def download_ticket(booking_id):
     if not booking:
         flash("Booking not found", "error")
         return redirect(url_for("user.booking_history"))
+
+    derive_bus_preferences(booking)
 
     # Generate PDF
     pdf_buffer = generate_ticket_pdf(booking)
@@ -1951,7 +2328,8 @@ def verify_ticket(booking_id):
 
     cursor.execute("""
         SELECT b.*, buses.bus_name, buses.source, buses.destination,
-               buses.bus_type, buses.operator, buses.departure_time, buses.arrival_time, buses.price
+               buses.bus_type, buses.operator, buses.departure_time, buses.arrival_time, buses.price,
+               buses.is_double_decker, buses.seat_layout
         FROM bookings b
         JOIN buses ON b.bus_id = buses.id
         WHERE b.id = %s
@@ -1970,6 +2348,7 @@ def verify_ticket(booking_id):
     booking['travel_date'] = ensure_date(booking.get('travel_date'))
     booking['departure_time'] = ensure_time(booking.get('departure_time'))
     booking['arrival_time'] = ensure_time(booking.get('arrival_time'))
+    derive_bus_preferences(booking)
 
     return render_template("verify_ticket.html", booking=booking)
 
@@ -2002,6 +2381,87 @@ def get_bus_routes_api(bus_id):
         'destination': bus['destination'],
         'routes': routes if routes else []
     })
+
+
+@user_bp.route("/track_bus/<int:booking_id>")
+def track_bus(booking_id):
+    """Passenger page to track live bus location for a booking."""
+    db = get_db_connection()
+    cursor = db.cursor(dictionary=True)
+
+    cursor.execute("""
+        SELECT b.id, b.booking_id, b.bus_id, b.travel_date, b.status AS booking_status,
+               buses.bus_name, buses.source, buses.destination, buses.departure_time, buses.arrival_time
+        FROM bookings b
+        JOIN buses ON b.bus_id = buses.id
+        WHERE b.id = %s AND b.user_id = %s
+    """, (booking_id, session['user_id']))
+    booking = cursor.fetchone()
+
+    if not booking:
+        cursor.close()
+        db.close()
+        flash("Booking not found", "error")
+        return redirect(url_for("user.booking_history"))
+
+    if booking.get("booking_status") == "cancelled":
+        cursor.close()
+        db.close()
+        flash("Live tracking is not available for cancelled bookings", "warning")
+        return redirect(url_for("user.booking_history"))
+
+    cursor.close()
+    db.close()
+    return render_template("track_bus.html", booking=booking)
+
+
+@user_bp.route("/api/live_location/<int:booking_id>")
+def live_location_api(booking_id):
+    """API endpoint returning live/simulated bus location for passenger booking."""
+    db = get_db_connection()
+    cursor = db.cursor(dictionary=True)
+
+    cursor.execute("""
+        SELECT b.id, b.booking_id, b.bus_id, b.travel_date, b.status AS booking_status,
+               buses.bus_name, buses.source, buses.destination, buses.departure_time, buses.arrival_time
+        FROM bookings b
+        JOIN buses ON b.bus_id = buses.id
+        WHERE b.id = %s AND b.user_id = %s
+    """, (booking_id, session['user_id']))
+    booking = cursor.fetchone()
+
+    if not booking:
+        cursor.close()
+        db.close()
+        return jsonify({"success": False, "message": "Booking not found"}), 404
+
+    if booking.get("booking_status") == "cancelled":
+        cursor.close()
+        db.close()
+        return jsonify({"success": False, "message": "Live tracking not available for cancelled bookings"}), 400
+
+    cursor.execute("""
+        SELECT bus_id, latitude, longitude, current_stop, next_stop, estimated_arrival, status, last_updated
+        FROM bus_locations
+        WHERE bus_id = %s
+        ORDER BY last_updated DESC
+        LIMIT 1
+    """, (booking["bus_id"],))
+    location_row = cursor.fetchone()
+
+    cursor.execute("""
+        SELECT stop_name, stop_order
+        FROM routes
+        WHERE bus_id = %s
+        ORDER BY stop_order
+    """, (booking["bus_id"],))
+    route_rows = cursor.fetchall()
+
+    cursor.close()
+    db.close()
+
+    live_data = build_live_tracking_data(booking, location_row, route_rows)
+    return jsonify({"success": True, "data": live_data})
 
 @user_bp.route("/feedback/<int:booking_id>", methods=["GET", "POST"])
 def feedback(booking_id):
@@ -2278,20 +2738,27 @@ def manage_buses():
         price = request.form["price"]
         seats_total = request.form["seats_total"]
         bus_type = request.form.get("bus_type", "").strip()
-        amenities = request.form.getlist("amenities")
+        seat_layout = request.form.get("seat_layout", "Sitting").strip() or "Sitting"
+        is_double_decker = 1 if request.form.get("is_double_decker") == "1" else 0
+        amenities_raw = request.form.get("amenities", "").strip()
+        amenities = [item.strip() for item in amenities_raw.split(",") if item.strip()]
         
         # Validate bus_type
-        valid_bus_types = ['AC', 'Non-AC', 'Sleeper', 'Seater', 'Double Decker']
+        valid_bus_types = ['AC', 'Non-AC', 'Semi-Sleeper', 'Volvo', 'Luxury', 'Sleeper', 'Seater', 'Double Decker']
         if not bus_type or bus_type not in valid_bus_types:
             flash(f"Invalid bus type. Must be one of: {', '.join(valid_bus_types)}", "error")
-            return redirect(url_for("admin.admin_add_bus"))
+            return redirect(url_for("admin.manage_buses"))
+
+        if seat_layout not in ['Sleeper', 'Sitting']:
+            flash("Seat type must be either Sleeper or Sitting.", "error")
+            return redirect(url_for("admin.manage_buses"))
 
         cursor.execute("""
             INSERT INTO buses(bus_name, source, destination, stops, departure_time, arrival_time,
-                            travel_date, price, seats_total, bus_type, amenities)
-            VALUES(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                            travel_date, price, seats_total, bus_type, amenities, is_double_decker, seat_layout)
+            VALUES(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """, (bus_name, source, destination, json.dumps(stops), departure_time, arrival_time,
-              travel_date, price, seats_total, bus_type, json.dumps(amenities)))
+              travel_date, price, seats_total, bus_type, json.dumps(amenities), is_double_decker, seat_layout))
 
         bus_id = cursor.lastrowid
 
@@ -2302,6 +2769,16 @@ def manage_buses():
                 VALUES(%s, %s, %s)
             """, (bus_id, stop, i+1))
 
+        default_seat_type = 'Sleeper' if seat_layout == 'Sleeper' else 'Seater'
+        default_price_modifier = 1.15 if seat_layout == 'Sleeper' else 1.0
+        seats_total_int = int(seats_total)
+        for seat_number in range(1, seats_total_int + 1):
+            deck = 'Upper' if is_double_decker and seat_number > (seats_total_int // 2) else 'Lower'
+            cursor.execute("""
+                INSERT INTO seat_details(bus_id, seat_number, seat_type, deck, gender_restriction, price_modifier)
+                VALUES(%s, %s, %s, %s, %s, %s)
+            """, (bus_id, str(seat_number), default_seat_type, deck, 'None', default_price_modifier))
+
         db.commit()
         flash("Bus added successfully", "success")
         return redirect(url_for("admin.manage_buses"))
@@ -2311,6 +2788,7 @@ def manage_buses():
     buses = cursor.fetchall()
 
     for bus in buses:
+        derive_bus_preferences(bus)
         if bus['stops']:
             bus['stops_list'] = json.loads(bus['stops'])
         if bus['amenities']:
@@ -2380,4 +2858,3 @@ def booking_success():
 # ================= RUN APP =================
 if __name__ == "__main__":
     app.run(debug=True, host='0.0.0.0', port=5000)
-

@@ -62,6 +62,7 @@
             margin-bottom: 1rem;
         }
 
+
         @media print {
             .no-print {
                 display: none;
@@ -71,10 +72,43 @@
                 box-shadow: none;
                 border: 1px solid #dee2e6;
             }
+
+            .interior-image {
+                height: 200px !important;
+            }
+        }
+
+        .interior-image {
+            height: 320px;
+            object-fit: cover;
+            background: #f5f7fb;
+        }
+
+        .interior-caption {
+            background: rgba(13, 26, 38, 0.58);
+            border-radius: 12px;
+            padding: 12px 16px;
         }
     </style>
+
 </head>
 <body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-danger no-print">
+        <div class="container">
+            <a class="navbar-brand fw-bold" href="{{ url_for('user.search') }}">
+                <i class="fas fa-bus me-2"></i>BusHub
+            </a>
+            <div class="ms-auto d-flex gap-2">
+                <a href="{{ url_for('user.booking_history') }}" class="btn btn-outline-light btn-sm">
+                    <i class="fas fa-history me-1"></i>My Bookings
+                </a>
+                <a href="{{ url_for('user.search') }}" class="btn btn-light btn-sm text-danger">
+                    <i class="fas fa-plus me-1"></i>Book Again
+                </a>
+            </div>
+        </div>
+    </nav>
+
     <div class="container cancellation-container">
         <div class="cancellation-card">
             <div class="cancellation-header">
@@ -94,8 +128,9 @@
 
                 <div class="refund-card">
                     <i class="fas fa-money-bill-wave fa-2x mb-2"></i>
-                    <h5>Refund Amount</h5>
+                    <h5>Refund Summary</h5>
                     <div class="refund-amount">&#8377;{{ "%.2f"|format(booking.refund_amount or 0) }}</div>
+                    <p class="mb-1">Refund Percentage: {{ "%.2f"|format(booking.refund_percentage or 0) }}%</p>
                     <p class="mb-0">Refund will be processed within 5-7 business days.</p>
                 </div>
 
@@ -105,10 +140,12 @@
                         <div class="col-md-6">
                             <p><strong>Original Amount:</strong> &#8377;{{ "%.2f"|format(booking.total_amount) }}</p>
                             <p><strong>Refund Amount:</strong> &#8377;{{ "%.2f"|format(booking.refund_amount or 0) }}</p>
+                            <p><strong>Refund Policy:</strong> {{ booking.refund_policy_text }}</p>
                         </div>
                         <div class="col-md-6">
                             <p><strong>Cancellation Fee:</strong> &#8377;{{ "%.2f"|format(booking.total_amount - (booking.refund_amount or 0)) }}</p>
                             <p><strong>Processing Time:</strong> 5-7 business days</p>
+                            <p><strong>Refund Status:</strong> <span class="badge bg-light text-success">Refund Pending</span></p>
                         </div>
                     </div>
                 </div>
@@ -122,7 +159,7 @@
                         </div>
                         <div class="col-md-6">
                             <p><strong>Phone:</strong> {{ booking.contact_number or 'N/A' }}</p>
-                            <p><strong>Payment Status:</strong> <span class="badge bg-success">Refund Pending</span></p>
+                            <p><strong>Booking Status:</strong> <span class="badge bg-danger">Cancelled</span></p>
                         </div>
                     </div>
                 </div>
@@ -133,6 +170,8 @@
                         <div class="col-md-6">
                             <p><strong>Bus Name:</strong> {{ booking.bus_name }}</p>
                             <p><strong>Bus Type:</strong> {{ booking.bus_type }}</p>
+                            <p><strong>Bus Deck:</strong> {{ booking.double_decker_label }}</p>
+                            <p><strong>Seat Type:</strong> {{ booking.seat_layout_label }}</p>
                             <p><strong>Route:</strong> {{ booking.source }} &rarr; {{ booking.destination }}</p>
                             <p><strong>Travel Date:</strong> {{ booking.travel_date.strftime('%Y-%m-%d') if booking.travel_date else 'N/A' }}</p>
                         </div>
@@ -144,6 +183,7 @@
                                     <span class="badge bg-secondary me-1">{{ seat.number }}</span>
                                 {% endfor %}
                             </p>
+
                             <p><strong>Number of Seats:</strong> {{ booking.seat_count }}</p>
                         </div>
                     </div>

@@ -70,13 +70,27 @@
                     <div class="card-body">
                         <div class="row g-3">
                             <div class="col-md-3">
-                                <label class="form-label">Bus Type</label>
+                                <label class="form-label">AC Type</label>
                                 <select class="form-select" id="busTypeFilter">
-                                    <option value="">All Types</option>
+                                    <option value="">All</option>
                                     <option value="AC">AC</option>
                                     <option value="Non-AC">Non-AC</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Seat Type</label>
+                                <select class="form-select" id="seatTypeFilter">
+                                    <option value="">All</option>
+                                    <option value="Sitting">Seater / Sitting</option>
                                     <option value="Sleeper">Sleeper</option>
-                                    <option value="Seater">Seater</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Deck Type</label>
+                                <select class="form-select" id="deckFilter">
+                                    <option value="">All</option>
+                                    <option value="Single Decker">Single Decker</option>
+                                    <option value="Double Decker">Double Decker</option>
                                 </select>
                             </div>
                             <div class="col-md-3">
@@ -117,7 +131,7 @@
         <!-- Bus List -->
         <div id="busList">
             {% for bus in buses %}
-            <div class="bus-card" data-bus-type="{{ bus.bus_type }}" data-price="{{ bus.price }}" data-departure="{{ bus.departure_time  }}">
+            <div class="bus-card" data-bus-type="{{ bus.bus_type }}" data-seat-layout="{{ bus.seat_layout_label }}" data-deck-type="{{ bus.double_decker_label }}" data-price="{{ bus.price }}" data-departure="{{ bus.departure_time  }}">
                 <div class="bus-header">
                     <div class="bus-name">{{ bus.bus_name }}</div>
                     <div class="bus-route">
@@ -156,11 +170,14 @@
                     <div class="bus-details">
                         <div>
                             <span class="badge bg-secondary">{{ bus.bus_type }}</span>
+                            <span class="badge bg-dark">{{ bus.double_decker_label }}</span>
+                            <span class="badge bg-warning text-dark">{{ bus.seat_layout_label }}</span>
                             <span class="badge bg-info">{{ bus.operator }}</span>
                         </div>
 
                         <div class="bus-price">
                             <div class="amount">₹{{ bus.price }}</div>
+                            <div class="travel-date small text-muted">{{ bus.travel_date }}</div>
                             <div class="seats">{{ bus.available_seats }} seats left</div>
                         </div>
                     </div>
@@ -235,17 +252,22 @@
     <script>
         // Filter functionality
         document.getElementById('busTypeFilter').addEventListener('change', filterBuses);
+        document.getElementById('seatTypeFilter').addEventListener('change', filterBuses);
+        document.getElementById('deckFilter').addEventListener('change', filterBuses);
         document.getElementById('departureFilter').addEventListener('change', filterBuses);
         document.getElementById('priceFilter').addEventListener('change', filterBuses);
         document.getElementById('sortFilter').addEventListener('change', filterBuses);
 
         function filterBuses() {
             const busType = document.getElementById('busTypeFilter').value;
+            const seatType = document.getElementById('seatTypeFilter').value;
+            const deckType = document.getElementById('deckFilter').value;
             const departure = document.getElementById('departureFilter').value;
             const price = document.getElementById('priceFilter').value;
             const sort = document.getElementById('sortFilter').value;
 
             const buses = document.querySelectorAll('.bus-card');
+            const visibleBuses = [];
 
             buses.forEach(bus => {
                 let show = true;
@@ -255,17 +277,28 @@
                     show = false;
                 }
 
+                // Seat type filter
+                if (show && seatType && bus.dataset.seatLayout !== seatType) {
+                    show = false;
+                }
+
+                // Deck filter
+                if (show && deckType && bus.dataset.deckType !== deckType) {
+                    show = false;
+                }
+
                 // Departure time filter
-                if (departure && bus.dataset.departure) {
-                    const hour = parseInt(bus.dataset.departure);
+                if (show && departure && bus.dataset.departure) {
+                    const timeStr = bus.dataset.departure.trim();
+                    const hour = parseInt(timeStr.split(':')[0]);
                     if (departure === 'morning' && (hour < 6 || hour >= 12)) show = false;
                     if (departure === 'afternoon' && (hour < 12 || hour >= 18)) show = false;
                     if (departure === 'evening' && (hour < 18 || hour >= 24)) show = false;
-                    if (departure === 'night' && hour >= 6) show = false;
+                    if (departure === 'night' && (hour >= 6 && hour < 18)) show = false;
                 }
 
                 // Price filter
-                if (price && bus.dataset.price) {
+                if (show && price && bus.dataset.price) {
                     const busPrice = parseInt(bus.dataset.price);
                     if (price === '0-500' && busPrice > 500) show = false;
                     if (price === '500-1000' && (busPrice < 500 || busPrice > 1000)) show = false;
@@ -274,22 +307,46 @@
                 }
 
                 bus.style.display = show ? 'block' : 'none';
+                if (show) {
+                    visibleBuses.push(bus);
+                }
             });
 
-            // Sorting
-            const busList = document.getElementById('busList');
-            const busCards = Array.from(buses);
-
+            // Sorting - only sort visible buses
             if (sort === 'price-low') {
-                busCards.sort((a, b) => parseInt(a.dataset.price) - parseInt(b.dataset.price));
+                visibleBuses.sort((a, b) => parseInt(a.dataset.price) - parseInt(b.dataset.price));
             } else if (sort === 'price-high') {
-                busCards.sort((a, b) => parseInt(b.dataset.price) - parseInt(a.dataset.price));
+                visibleBuses.sort((a, b) => parseInt(b.dataset.price) - parseInt(a.dataset.price));
             } else if (sort === 'departure') {
-                busCards.sort((a, b) => a.dataset.departure.localeCompare(b.dataset.departure));
+                visibleBuses.sort((a, b) => {
+                    const timeA = a.dataset.departure || '';
+                    const timeB = b.dataset.departure || '';
+                    return timeA.localeCompare(timeB);
+                });
             }
 
-            busCards.forEach(card => busList.appendChild(card));
+            // Reorder the visible buses in the DOM
+            const busList = document.getElementById('busList');
+            visibleBuses.forEach(bus => {
+                busList.appendChild(bus);
+            });
+
+            // Show/hide no results message
+            const noResults = visibleBuses.length === 0 && document.querySelectorAll('.bus-card[style="display: none;"]').length > 0;
+            if (noResults) {
+                const noResultsMsg = document.querySelector('.text-center.py-5');
+                if (noResultsMsg) {
+                    noResultsMsg.style.display = 'block';
+                }
+            }
         }
+
+        {% if search_data %}
+        document.getElementById('busTypeFilter').value = "{{ search_data.bus_type_pref or '' }}";
+        document.getElementById('seatTypeFilter').value = "{{ search_data.seat_type_pref or '' }}";
+        document.getElementById('deckFilter').value = "{{ search_data.deck_type_pref or '' }}";
+        filterBuses();
+        {% endif %}
     </script>
 </body>
 </html>

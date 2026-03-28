@@ -72,6 +72,11 @@
                                     <i class="fas fa-clock me-2"></i>{{ bus.departure_time }} - {{ bus.arrival_time }}
                                 </p>
                                 <p class="mb-1">
+                                    <span class="badge bg-secondary">{{ bus.bus_type }}</span>
+                                    <span class="badge bg-dark">{{ bus.double_decker_label }}</span>
+                                    <span class="badge bg-warning text-dark">{{ bus.seat_layout_label }}</span>
+                                </p>
+                                <p class="mb-1">
                                     <i class="fas fa-chair me-2"></i>Seats: {{ selected_seats|join(', ') }}
                                 </p>
                                 <p class="mb-1">
@@ -211,7 +216,7 @@
                                     <div class="form-check">
                                         <input class="form-check-input" type="checkbox" id="terms" required>
                                         <label class="form-check-label" for="terms">
-                                            I agree to the <a href="#" class="text-primary">Terms and Conditions</a> and <a href="#" class="text-primary">Cancellation Policy</a>
+                                            I agree to the <a href="#" class="text-primary" data-bs-toggle="modal" data-bs-target="#termsModal">Terms and Conditions</a> and <a href="#" class="text-primary" data-bs-toggle="modal" data-bs-target="#termsModal">Cancellation Policy</a>
                                         </label>
                                     </div>
                                 </div>
@@ -233,6 +238,47 @@
                     <i class="fas fa-shield-alt me-2"></i>
                     <strong>Secure Payment:</strong> Your payment information is encrypted and secure.
                     We use industry-standard SSL encryption to protect your data.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="termsModal" tabindex="-1" aria-labelledby="termsModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="termsModalLabel">Terms and Conditions and Cancellation Policy</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <h6>Booking Terms</h6>
+                    <ul>
+                        <li>Passengers must arrive at the boarding point at least 30 minutes before departure.</li>
+                        <li>A valid government-issued ID must be carried during travel and shown when requested.</li>
+                        <li>Seats are confirmed only after successful payment.</li>
+                        <li>Boarding and dropping points selected during booking must be followed for the trip.</li>
+                        <li>Operator timings and stop schedules may change slightly because of traffic, weather, or operational reasons.</li>
+                        <li>BusHub is a booking platform; onboard amenities may vary slightly based on operator availability.</li>
+                    </ul>
+
+                    <h6>Cancellation Policy</h6>
+                    <ul>
+                        <li>Cancellation is not allowed within 2 hours of departure.</li>
+                        <li>90% refund is issued for cancellations made more than 24 hours before departure.</li>
+                        <li>50% refund is issued for cancellations made between 2 and 24 hours before departure.</li>
+                        <li>Refunds are processed to the original payment method within 5 to 7 business days.</li>
+                        <li>Convenience fees or operator deductions may be non-refundable where applicable.</li>
+                    </ul>
+
+                    <h6>Passenger Responsibilities</h6>
+                    <ul class="mb-0">
+                        <li>Please keep your phone, ticket, and contact details available during boarding.</li>
+                        <li>Passengers are responsible for personal belongings.</li>
+                        <li>Disruptive behavior, unsafe items, or violation of travel rules may result in denied boarding without refund.</li>
+                    </ul>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Close</button>
                 </div>
             </div>
         </div>

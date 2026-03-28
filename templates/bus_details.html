@@ -60,6 +60,8 @@
                         <div class="row mb-4">
                             <div class="col-md-6">
                                 <p class="mb-2"><strong>Bus Type:</strong> <span class="badge bg-secondary">{{ bus.bus_type }}</span></p>
+                                <p class="mb-2"><strong>Bus Deck:</strong> <span class="badge bg-dark">{{ bus.double_decker_label }}</span></p>
+                                <p class="mb-2"><strong>Seat Type:</strong> <span class="badge bg-warning text-dark">{{ bus.seat_layout_label }}</span></p>
                                 <p class="mb-2"><strong>Operator:</strong> {{ bus.operator }}</p>
                                 <p class="mb-2"><strong>Travel Date:</strong> {{ bus.travel_date }}</p>
                                 <p class="mb-0"><strong>Rating:</strong>
@@ -112,6 +114,7 @@
                             </div>
                         </div>
                         {% endif %}
+
                     </div>
                 </div>
 

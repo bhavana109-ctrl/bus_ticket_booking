@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Track Bus - BusHub</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand fw-bold" href="{{ url_for('user.search') }}">
+                <i class="fas fa-bus me-2"></i>BusHub
+            </a>
+            <div class="ms-auto d-flex gap-2">
+                <a class="btn btn-outline-light btn-sm" href="{{ url_for('user.booking_history') }}">
+                    <i class="fas fa-arrow-left me-1"></i>My Bookings
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container py-5">
+        <div class="row justify-content-center">
+            <div class="col-lg-9">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body p-4 p-md-5">
+                        <h3 class="text-primary mb-1"><i class="fas fa-map-marker-alt me-2"></i>Live Bus Tracking</h3>
+                        <p class="text-muted mb-4">{{ booking.bus_name }} | Booking ID: {{ booking.booking_id }}</p>
+
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-4">
+                                <div class="info-box">
+                                    <small class="text-muted d-block">Status</small>
+                                    <strong id="statusLabel">Loading...</strong>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="info-box">
+                                    <small class="text-muted d-block">Current Stop</small>
+                                    <strong id="currentStop">--</strong>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="info-box">
+                                    <small class="text-muted d-block">Next Stop</small>
+                                    <strong id="nextStop">--</strong>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <small class="text-muted">Trip Progress</small>
+                            <div class="progress" style="height: 12px;">
+                                <div id="progressBar" class="progress-bar bg-success" role="progressbar" style="width: 0%">0%</div>
+                            </div>
+                        </div>
+
+                        <div class="row g-3 mb-4">
+                            <div class="col-md-6">
+                                <div class="info-box">
+                                    <small class="text-muted d-block">Estimated Arrival (Next Stop)</small>
+                                    <strong id="etaValue">--</strong>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="info-box">
+                                    <small class="text-muted d-block">Last Updated</small>
+                                    <strong id="lastUpdated">--</strong>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <small class="text-muted d-block mb-2">Route</small>
+                            <div id="routeStops" class="d-flex flex-wrap gap-2"></div>
+                        </div>
+
+                        <div id="mapLinkWrap" class="alert alert-light border d-none mb-0">
+                            <i class="fas fa-location-arrow me-2 text-primary"></i>
+                            <a id="mapLink" target="_blank" rel="noopener noreferrer">Open current bus position in map</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const bookingId = {{ booking.id }};
+
+        function setText(id, value, fallback = '--') {
+            document.getElementById(id).textContent = value || fallback;
+        }
+
+        function setProgress(value) {
+            const pct = Number(value || 0);
+            const bounded = Math.max(0, Math.min(100, pct));
+            const bar = document.getElementById('progressBar');
+            bar.style.width = bounded + '%';
+            bar.textContent = bounded + '%';
+        }
+
+        function renderRoute(routeStops, currentStop) {
+            const wrap = document.getElementById('routeStops');
+            wrap.innerHTML = '';
+            (routeStops || []).forEach(stop => {
+                const badge = document.createElement('span');
+                const isCurrent = currentStop && stop === currentStop;
+                badge.className = `badge ${isCurrent ? 'bg-primary' : 'bg-light text-dark'} px-3 py-2`;
+                badge.textContent = stop;
+                wrap.appendChild(badge);
+            });
+            if (!routeStops || !routeStops.length) {
+                wrap.innerHTML = '<span class="text-muted">Route details unavailable</span>';
+            }
+        }
+
+        function renderMapLink(lat, lng) {
+            const wrap = document.getElementById('mapLinkWrap');
+            const link = document.getElementById('mapLink');
+            if (lat === null || lng === null || lat === undefined || lng === undefined) {
+                wrap.classList.add('d-none');
+                return;
+            }
+            link.href = `https://www.google.com/maps?q=${lat},${lng}`;
+            wrap.classList.remove('d-none');
+        }
+
+        async function fetchLiveData() {
+            try {
+                const response = await fetch(`/user/api/live_location/${bookingId}`);
+                const payload = await response.json();
+                if (!payload.success) {
+                    setText('statusLabel', payload.message || 'Tracking unavailable');
+                    return;
+                }
+
+                const data = payload.data || {};
+                setText('statusLabel', data.status_label);
+                setText('currentStop', data.current_stop);
+                setText('nextStop', data.next_stop);
+                setText('etaValue', data.estimated_arrival);
+                setText('lastUpdated', data.last_updated || 'Just now');
+                setProgress(data.progress);
+                renderRoute(data.route_stops, data.current_stop);
+                renderMapLink(data.latitude, data.longitude);
+            } catch (error) {
+                setText('statusLabel', 'Unable to fetch live data');
+            }
+        }
+
+        fetchLiveData();
+        setInterval(fetchLiveData, 30000);
+    </script>
+
+    <style>
+        .info-box {
+            border: 1px solid #e9ecef;
+            border-radius: 10px;
+            padding: 12px 14px;
+            background: #fff;
+        }
+    </style>
+</body>
+</html>

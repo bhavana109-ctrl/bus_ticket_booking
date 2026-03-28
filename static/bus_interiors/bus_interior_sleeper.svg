@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="700" viewBox="0 0 1200 700">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#f3ecff"/>
+      <stop offset="100%" stop-color="#e8dcff"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="700" fill="url(#bg)"/>
+  <rect x="70" y="70" width="1060" height="560" rx="36" fill="#ffffff" stroke="#dfd3f4" stroke-width="5"/>
+  <rect x="110" y="105" width="980" height="88" rx="22" fill="#6f42c1"/>
+  <text x="150" y="160" fill="#ffffff" font-size="38" font-family="Arial" font-weight="bold">Sleeper Coach Interior</text>
+  <text x="150" y="192" fill="#efe5ff" font-size="22" font-family="Arial">Berth-style layout, soft lighting and restful overnight travel setup</text>
+  <g fill="#eedfff">
+    <rect x="140" y="245" width="150" height="110" rx="28"/>
+    <rect x="140" y="380" width="150" height="110" rx="28"/>
+    <rect x="910" y="245" width="150" height="110" rx="28"/>
+    <rect x="910" y="380" width="150" height="110" rx="28"/>
+    <rect x="325" y="245" width="120" height="245" rx="24" opacity="0.8"/>
+    <rect x="755" y="245" width="120" height="245" rx="24" opacity="0.8"/>
+  </g>
+  <rect x="500" y="225" width="200" height="305" rx="28" fill="#faf7ff" stroke="#e1d8ef" stroke-width="4"/>
+  <text x="548" y="390" fill="#786592" font-size="28" font-family="Arial">Aisle</text>
+  <text x="150" y="585" fill="#35244d" font-size="28" font-family="Arial" font-weight="bold">Relaxed sleeper arrangement for long-distance comfort</text>
+</svg>

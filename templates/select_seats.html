@@ -155,6 +155,11 @@
                             <i class="fas fa-clock me-1"></i>{{ bus.departure_time }} - {{ bus.arrival_time }} |
                             <i class="fas fa-hourglass-half me-1"></i>{{ bus.duration }}
                         </p>
+                        <p class="mb-0 mt-2">
+                            <span class="badge bg-secondary">{{ bus.bus_type }}</span>
+                            <span class="badge bg-dark">{{ bus.double_decker_label }}</span>
+                            <span class="badge bg-warning text-dark">{{ bus.seat_layout_label }}</span>
+                        </p>
                     </div>
                     <div class="col-md-4 text-md-end">
                         <div class="h5 text-primary mb-0">&#8377;{{ "%.2f"|format(bus.price) }}</div>
@@ -318,6 +323,21 @@
                             </div>
                         </div>
 
+                        <!-- Terms and Conditions -->
+                        <div class="alert alert-light border border-2 mt-4">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="termsConditions" name="terms_conditions" required>
+                                <label class="form-check-label" for="termsConditions">
+                                    <strong>I agree to the Terms and Conditions and Cancellation Policy</strong>
+                                    <br>
+                                    <small class="text-muted">
+                                        I understand the booking terms, bus rules, and cancellation policy. 
+                                        Please arrive 30 minutes before departure time and carry a valid ID proof.
+                                    </small>
+                                </label>
+                            </div>
+                        </div>
+
                         <div class="text-center mt-4">
                             <a href="{{ url_for('user.search') }}" class="btn btn-outline-secondary me-2">
                                 <i class="fas fa-arrow-left me-1"></i>Back to Bus List
@@ -410,7 +430,8 @@
             document.getElementById("droppingInput").value = droppingPoint;
 
             const proceedBtn = document.getElementById("proceedBtn");
-            proceedBtn.disabled = selectedSeats.length === 0 || !boardingPoint || !droppingPoint || boardingPoint === droppingPoint;
+            const termsCheckbox = document.getElementById("termsConditions");
+            proceedBtn.disabled = selectedSeats.length === 0 || !boardingPoint || !droppingPoint || boardingPoint === droppingPoint || !termsCheckbox.checked;
         }
 
         document.getElementById("boarding_point").addEventListener("change", function() {
@@ -420,6 +441,10 @@
 
         document.getElementById("dropping_point").addEventListener("change", function() {
             droppingPoint = this.value;
+            updateSummary();
+        });
+
+        document.getElementById("termsConditions").addEventListener("change", function() {
             updateSummary();
         });
 
@@ -439,6 +464,13 @@
             if (boardingPoint === droppingPoint) {
                 event.preventDefault();
                 alert("Boarding and dropping points must be different.");
+                return;
+            }
+
+            const termsCheckbox = document.getElementById("termsConditions");
+            if (!termsCheckbox.checked) {
+                event.preventDefault();
+                alert("Please agree to the Terms and Conditions and Cancellation Policy to proceed.");
                 return;
             }
 
